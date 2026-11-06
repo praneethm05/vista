@@ -12,6 +12,8 @@ export function OrgPage() {
   const [draft, setDraft] = useState<{ role: Role; managerId: string | null; department: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+  const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   if (people.loading && !people.data) return <SkeletonList rows={5} />;
   if (people.error) return <ErrorState message={people.error.message} onRetry={people.reload} />;
@@ -42,45 +44,63 @@ export function OrgPage() {
     }
   }
 
-  const Node = ({ p, depth }: { p: Person; depth: number }) => {
-    const kids = reportsOf(p.id);
+  const q = query.trim().toLowerCase();
+  const matches = (p: Person) => !q || [p.name, p.email, p.department, p.employeeCode].some((v) => v?.toLowerCase().includes(q));
+  const managers = all.filter((p) => p.role === 'MANAGER').sort((a, b) => a.department.localeCompare(b.department));
+
+  const Row = ({ p, compact = false }: { p: Person; compact?: boolean }) => {
     const active = selected?.id === p.id;
     return (
-      <li>
-        <button onClick={() => pick(p)} aria-pressed={active}
-          className={`flex w-full items-center gap-3 rounded-control px-3 py-2 text-left transition ${active ? 'bg-brand-tint ring-1 ring-brand/30' : 'hover:bg-canvas'}`}>
-          <Avatar seed={p.avatarSeed ?? p.email} size={32} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-small font-semibold">{p.name}</span>
-            <span className="block truncate text-tiny text-muted"><RoleTag role={p.role} /> {p.department}</span>
-          </span>
-          {kids.length > 0 && <span className="data rounded-md bg-line/70 px-1.5 text-tiny text-muted">{kids.length}</span>}
-        </button>
-        {kids.length > 0 && (
-          <ul className={`ml-5 space-y-1 border-l border-line pl-3 ${depth === 0 ? 'mt-1' : ''}`}>
-            {kids.map((k) => <Node key={k.id} p={k} depth={depth + 1} />)}
-          </ul>
-        )}
-      </li>
+      <button onClick={() => pick(p)} aria-pressed={active}
+        className={`flex w-full items-center gap-2.5 rounded-control px-2 ${compact ? 'py-1.5' : 'py-2'} text-left transition ${active ? 'bg-brand-tint ring-1 ring-brand/30' : 'hover:bg-canvas'} ${q && matches(p) ? 'bg-accent-tint/60' : ''}`}>
+        <Avatar seed={p.avatarSeed ?? p.email} size={compact ? 26 : 34} />
+        <span className="min-w-0 flex-1">
+          <span className={`block truncate ${compact ? 'text-small' : 'font-semibold'}`}>{p.name}</span>
+          {!compact && <span className="block truncate text-tiny text-muted"><RoleTag role={p.role} /> {p.department}</span>}
+        </span>
+        {compact && <span className="data text-[0.6875rem] text-muted">{p.employeeCode}</span>}
+      </button>
+    );
+  };
+
+  const TeamCard = ({ lead, members, title }: { lead?: Person; members: Person[]; title?: string }) => {
+    const key = lead?.id ?? title ?? 'x';
+    const visible = q ? members.filter(matches) : expanded[key] ? members : members.slice(0, 5);
+    const hidden = members.length - visible.length;
+    if (q && !visible.length && !(lead && matches(lead))) return null;
+    return (
+      <div className="card flex flex-col p-3">
+        {lead ? <Row p={lead} /> : <p className="px-2 py-1 text-small font-semibold text-warning">{title}</p>}
+        <div className="mt-1 border-t border-line pt-1">
+          {members.length === 0 && <p className="px-2 py-2 text-tiny text-muted">No one in this team yet.</p>}
+          {visible.map((m) => <Row key={m.id} p={m} compact />)}
+          {!q && hidden > 0 && (
+            <button className="mt-1 w-full rounded-control py-1.5 text-tiny font-semibold text-brand hover:bg-brand-tint" onClick={() => setExpanded({ ...expanded, [key]: true })}>Show all {members.length}</button>
+          )}
+        </div>
+      </div>
     );
   };
 
   return (
     <>
       <PageHeader eyebrow="System admin" title="Organisation" />
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <section className="card p-4 sm:p-6">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h3>Reporting tree</h3>
-            <span className="text-tiny text-muted">{all.length} people · click someone to edit</span>
+      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <input className="field max-w-sm" placeholder="Find a person, department or ID" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search people" />
+            <span className="text-tiny text-muted">{all.length} people · {managers.length} teams · click anyone to edit</span>
           </div>
-          <ul className="space-y-1">{admins.map((a) => <Node key={a.id} p={a} depth={0} />)}</ul>
-          {unassigned.length > 0 && (
-            <div className="mt-6 rounded-card border border-warning/30 bg-warning-tint/40 p-3">
-              <p className="mb-2 text-small font-semibold text-warning">Not in a team yet ({unassigned.length})</p>
-              <ul className="space-y-1">{unassigned.map((p) => <Node key={p.id} p={p} depth={1} />)}</ul>
+          {admins.map((a) => (
+            <div key={a.id} className="card flex flex-wrap items-center gap-3 p-3">
+              <div className="min-w-56 flex-1"><Row p={a} /></div>
+              <span className="pr-2 text-tiny text-muted">Second-level approver for {reportsOf(a.id).length} managers and their teams</span>
             </div>
-          )}
+          ))}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {managers.map((m) => <TeamCard key={m.id} lead={m} members={reportsOf(m.id)} />)}
+            {unassigned.length > 0 && <TeamCard title={`Not in a team yet (${unassigned.length})`} members={unassigned} />}
+          </div>
         </section>
 
         <aside className="card h-fit space-y-5 p-5 sm:p-6 lg:sticky lg:top-24">
