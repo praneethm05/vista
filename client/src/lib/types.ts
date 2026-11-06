@@ -2,7 +2,7 @@ export type Role = 'EMPLOYEE' | 'MANAGER' | 'ADMIN' | 'SYSADMIN';
 export type Status = 'PENDING_MANAGER' | 'PENDING_HOD' | 'INFO_REQUESTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 export interface Balance { code: string; label: string; quota: number | null; used: number; pending: number; available: number | null }
-export interface Me { id: string; name: string; email: string; role: Role; department: string; employeeCode: string; managerId: string | null; hodId: string | null; avatarSeed: string; balances: Balance[] }
+export interface Me { id: string; name: string; email: string; role: Role; department: string; employeeCode: string; jobTitle: string; phone: string; location: string; managerId: string | null; hodId: string | null; avatarSeed: string; balances: Balance[] }
 export interface LeaveType { code: string; label: string; description: string; quota: number | null; documentAlways: boolean; backdateDays: number }
 
 export interface LeaveRequest {

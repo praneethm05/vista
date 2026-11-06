@@ -31,12 +31,202 @@ var userSchema = new Schema(
     role: { type: String, enum: ["EMPLOYEE", "MANAGER", "ADMIN", "SYSADMIN"], default: "EMPLOYEE" },
     employeeCode: { type: String, required: true, unique: true },
     department: { type: String, default: "Unassigned" },
+    jobTitle: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    location: { type: String, default: "" },
     managerId: { type: String, default: null, index: true },
     hodId: { type: String, default: null }
   },
   { timestamps: true }
 );
 var User = model("User", userSchema);
+
+// src/services/inviteService.ts
+import { z } from "zod";
+
+// src/models/Invite.ts
+import { Schema as Schema2, model as model2 } from "mongoose";
+var inviteSchema = new Schema2(
+  {
+    email: { type: String, required: true, lowercase: true, trim: true },
+    name: { type: String, required: true },
+    role: { type: String, enum: ["EMPLOYEE", "MANAGER", "ADMIN"], default: "EMPLOYEE" },
+    managerId: { type: String, default: null },
+    department: { type: String, default: "Unassigned" },
+    jobTitle: { type: String, default: "" },
+    invitedBy: { type: String, required: true },
+    claimedBy: { type: String, default: null },
+    claimedAt: { type: Date, default: null }
+  },
+  { timestamps: true }
+);
+inviteSchema.index({ email: 1 }, { unique: true, partialFilterExpression: { claimedBy: null } });
+var Invite = model2("Invite", inviteSchema);
+
+// src/models/AuditLog.ts
+import { Schema as Schema3, model as model3 } from "mongoose";
+var auditLogSchema = new Schema3({
+  requestId: { type: Schema3.Types.ObjectId, ref: "LeaveRequest", index: true },
+  actorId: { type: String, required: true },
+  actorName: { type: String, required: true },
+  actorRole: { type: String, required: true },
+  action: { type: String, required: true },
+  fromStatus: { type: String, default: null },
+  toStatus: { type: String, default: null },
+  comment: { type: String, default: "" },
+  meta: { type: Schema3.Types.Mixed, default: {} },
+  at: { type: Date, default: () => /* @__PURE__ */ new Date() }
+});
+auditLogSchema.index({ requestId: 1, at: 1 });
+var AuditLog = model3("AuditLog", auditLogSchema);
+
+// src/services/auditService.ts
+async function record(actor, entry) {
+  await AuditLog.create({
+    ...entry,
+    actorId: actor.id,
+    actorName: actor.name,
+    actorRole: actor.role
+  });
+}
+async function timeline(requestId) {
+  return AuditLog.find({ requestId }).sort({ at: 1 }).lean();
+}
+async function recent(limit = 100) {
+  return AuditLog.find().sort({ at: -1 }).limit(limit).lean();
+}
+
+// src/mail/mailService.ts
+import { Resend } from "resend";
+
+// src/mail/template.ts
+var TONES = {
+  pending: ["#fff4e0", "#b26a00"],
+  hod: ["#eee7fa", "#5c0fd9"],
+  info: ["#e7f1fa", "#216ba5"],
+  approved: ["#e6f4ed", "#1f8a5b"],
+  rejected: ["#fbeae7", "#c2412d"],
+  neutral: ["#f0eef4", "#6b6478"]
+};
+var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function renderEmail(c) {
+  const font = "font-family:Inter,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  const status = c.status ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:4px"><tr><td style="border-left:3px solid ${TONES[c.status.tone][1]};padding:1px 0 1px 12px"><div style="font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#8a8496">Status</div><div style="font-size:14px;font-weight:600;color:${TONES[c.status.tone][1]};margin-top:2px">${esc(c.status.label)}</div></td></tr></table>` : "";
+  const rows2 = (c.rows ?? []).map(([k, v]) => `<tr><td style="padding:10px 0;border-bottom:1px solid #efeaf6;color:#6b6478;font-size:13px;width:38%">${esc(k)}</td><td style="padding:10px 0;border-bottom:1px solid #efeaf6;color:#16121f;font-size:14px;font-weight:600">${esc(v)}</td></tr>`).join("");
+  const quote = c.quote ? `<div style="margin:20px 0 0;padding:14px 16px;border-left:3px solid #ff6300;background:#fff7f1;border-radius:0 10px 10px 0"><div style="font-size:12px;color:#6b6478;margin-bottom:4px">${esc(c.quote.by)} wrote</div><div style="font-size:15px;color:#16121f;line-height:1.5">\u201C${esc(c.quote.text)}\u201D</div></div>` : "";
+  const cta = c.cta ? `<a href="${esc(c.cta.url)}" style="display:inline-block;margin-top:24px;padding:13px 22px;background:#5c0fd9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px">${esc(c.cta.label)}</a>` : "";
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.title)}</title></head>
+<body style="margin:0;padding:0;background:#f4f1fa;${font}">
+<span style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(c.preheader)}</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1fa;padding:32px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
+  <tr><td style="background:#5c0fd9;border-radius:18px 18px 0 0;padding:22px 28px;position:relative">
+    <table role="presentation" width="100%"><tr>
+      <td><span style="display:inline-block;width:30px;height:30px;border-radius:8px;background:#ffffff;color:#ff6300;font-weight:900;font-size:18px;line-height:30px;text-align:center">V</span>
+      <span style="color:#ffffff;font-size:20px;font-weight:800;letter-spacing:.12em;vertical-align:middle;margin-left:8px">VISTA</span></td>
+      <td align="right" style="color:#d9c8fb;font-size:12px">Leave, simplified</td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="height:4px;background:linear-gradient(90deg,#ff6300,#ff9a4d);background-color:#ff6300"></td></tr>
+  <tr><td style="background:#ffffff;padding:30px 28px 32px;border-radius:0 0 18px 18px;box-shadow:0 8px 28px rgba(60,20,140,.08)">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b6478">${esc(c.eyebrow)}</div>
+    <h1 style="margin:8px 0 12px;font-size:24px;line-height:1.25;color:#16121f">${esc(c.title)}</h1>
+    ${status}
+    <p style="margin:16px 0 0;font-size:15px;line-height:1.6;color:#3b3546">${esc(c.intro)}</p>
+    ${rows2 ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px">${rows2}</table>` : ""}
+    ${quote}
+    ${cta}
+  </td></tr>
+  <tr><td style="padding:18px 8px;text-align:center;font-size:12px;color:#8a8496;line-height:1.6">
+    You're receiving this because of activity on your Vista leave account.<br>Vista \xB7 Hasta la vista, see you soon.
+  </td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+// src/mail/mailService.ts
+var client = null;
+function isDemoAddress(email) {
+  return /\+clerk_test@/i.test(email) || /@vista-demo\.com$/i.test(email);
+}
+function appUrl(path = "") {
+  const base = process.env.APP_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:5173");
+  return base.replace(/\/$/, "") + path;
+}
+async function sendEmail(to, subject, content) {
+  if (!to || process.env.NODE_ENV === "test") return { skipped: "test-or-no-recipient" };
+  if (isDemoAddress(to)) {
+    console.log(`\u2709\uFE0E skipped (demo address) \u2192 ${to}: ${subject}`);
+    return { skipped: "demo-address" };
+  }
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    console.log(`\u2709\uFE0E skipped (RESEND_API_KEY not set) \u2192 ${to}: ${subject}`);
+    return { skipped: "not-configured" };
+  }
+  client ??= new Resend(key);
+  try {
+    const { error } = await client.emails.send({
+      from: process.env.EMAIL_FROM ?? "Vista <onboarding@resend.dev>",
+      to,
+      subject,
+      html: renderEmail(content)
+    });
+    if (error) console.error("\u2709\uFE0E Resend error:", error.message);
+    else console.log(`\u2709\uFE0E sent \u2192 ${to}: ${subject}`);
+    return { sent: !error };
+  } catch (err) {
+    console.error("\u2709\uFE0E email failed:", err.message);
+    return { sent: false };
+  }
+}
+
+// src/services/inviteService.ts
+var inviteSchema2 = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address."),
+  name: z.string().trim().min(2, "Enter their full name.").max(60),
+  role: z.enum(["EMPLOYEE", "MANAGER", "ADMIN"]).default("EMPLOYEE"),
+  managerId: z.string().min(1).nullable().default(null),
+  department: z.string().trim().min(1, "Enter a department.").max(60),
+  jobTitle: z.string().trim().max(60).default("")
+});
+async function createInvite(actor, input) {
+  if (await User.exists({ email: input.email })) throw new AppError("ALREADY_A_USER", 409, "Someone with this email already uses Vista. Edit them in the tree instead.");
+  if (input.role !== "ADMIN") {
+    if (!input.managerId) throw new AppError("MANAGER_REQUIRED", 400, "Choose who they will report to.", { managerId: "Required" });
+    const manager = await User.findOne({ clerkId: input.managerId }).lean();
+    if (!manager || !["MANAGER", "ADMIN"].includes(manager.role)) throw new AppError("INVALID_MANAGER", 400, "Pick a manager or admin.");
+    if (input.role === "MANAGER" && manager.role !== "ADMIN") throw new AppError("INVALID_MANAGER", 400, "Managers report to an admin (HOD).");
+  }
+  try {
+    const invite = await Invite.create({ ...input, managerId: input.role === "ADMIN" ? null : input.managerId, invitedBy: actor.id });
+    await record(actor, { action: "PERSON_INVITED", comment: `${input.name} <${input.email}> as ${input.role}`, meta: { inviteId: invite.id } });
+    await sendEmail(input.email, "You've been added to Vista", {
+      preheader: "Sign in with this email to get started",
+      eyebrow: "Welcome",
+      title: `Welcome to Vista, ${input.name.split(" ")[0]}`,
+      intro: `Your account is ready. Sign in with ${input.email} and you'll land directly in your team, ready to apply for leave.`,
+      rows: [["Role", input.role === "ADMIN" ? "Admin \xB7 HOD" : input.role === "MANAGER" ? "Manager" : "Employee"], ["Department", input.department], ...input.jobTitle ? [["Job title", input.jobTitle]] : []],
+      cta: { label: "Sign in to Vista", url: appUrl("/") }
+    });
+    return invite.toObject();
+  } catch (err) {
+    if (err.code === 11e3) throw new AppError("ALREADY_INVITED", 409, "This email already has an open invite.");
+    throw err;
+  }
+}
+async function listOpenInvites() {
+  return Invite.find({ claimedBy: null }).sort({ createdAt: -1 }).lean();
+}
+async function cancelInvite(actor, id) {
+  const invite = await Invite.findOneAndDelete({ _id: id, claimedBy: null }).lean().catch(() => null);
+  if (!invite) throw new AppError("NOT_FOUND", 404, "Invite not found or already used.");
+  await record(actor, { action: "INVITE_CANCELLED", comment: invite.email });
+  return { ok: true };
+}
+async function claimInvite(clerkId, email) {
+  if (!email) return null;
+  return Invite.findOneAndUpdate({ email: email.toLowerCase(), claimedBy: null }, { $set: { claimedBy: clerkId, claimedAt: /* @__PURE__ */ new Date() } }, { returnDocument: "after" }).lean();
+}
 
 // src/auth/requireAuth.ts
 var CACHE_MS = 3e4;
@@ -70,6 +260,22 @@ async function createFromClerk(clerkId) {
   const email = clerkUser.primaryEmailAddress?.emailAddress ?? "";
   const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || email.split("@")[0] || "New employee";
   try {
+    const invite = await claimInvite(clerkId, email);
+    if (invite) {
+      const manager = invite.managerId ? await User.findOne({ clerkId: invite.managerId }).lean() : null;
+      const hodId = !manager ? null : manager.role === "ADMIN" ? manager.clerkId : manager.hodId ?? manager.managerId ?? manager.clerkId;
+      return await User.create({
+        clerkId,
+        name: invite.name,
+        email,
+        role: invite.role,
+        employeeCode: await nextEmployeeCode(),
+        department: invite.department,
+        jobTitle: invite.jobTitle,
+        managerId: invite.managerId,
+        hodId
+      });
+    }
     return await User.create({ clerkId, name, email, role: "EMPLOYEE", employeeCode: await nextEmployeeCode() });
   } catch (err) {
     const existing = await User.findOne({ clerkId });
@@ -89,6 +295,9 @@ function toCurrentUser(doc) {
     role: doc.role,
     department: doc.department ?? "Unassigned",
     employeeCode: doc.employeeCode,
+    jobTitle: doc.jobTitle ?? "",
+    phone: doc.phone ?? "",
+    location: doc.location ?? "",
     managerId: doc.managerId ?? null,
     hodId: doc.hodId ?? null,
     avatarSeed: doc.email || doc.clerkId
@@ -130,7 +339,7 @@ function errorHandler(err, _req, res, _next) {
 import { Router } from "express";
 
 // src/domain/schemas.ts
-import { z } from "zod";
+import { z as z2 } from "zod";
 
 // src/domain/leaveTypes.ts
 var LEAVE_TYPES = [
@@ -225,37 +434,37 @@ function label(status) {
 }
 
 // src/domain/schemas.ts
-var day = z.string({ error: "Please pick a date." }).regex(/^\d{4}-\d{2}-\d{2}$/, "Use the format YYYY-MM-DD.").refine((v) => !Number.isNaN(Date.parse(v)), "That date does not exist.");
-var objectId = z.string().regex(/^[a-f0-9]{24}$/, "Invalid document id.");
-var createLeaveSchema = z.object({
-  leaveType: z.enum(LEAVE_TYPE_CODES, { error: "Please choose a leave type." }),
+var day = z2.string({ error: "Please pick a date." }).regex(/^\d{4}-\d{2}-\d{2}$/, "Use the format YYYY-MM-DD.").refine((v) => !Number.isNaN(Date.parse(v)), "That date does not exist.");
+var objectId = z2.string().regex(/^[a-f0-9]{24}$/, "Invalid document id.");
+var createLeaveSchema = z2.object({
+  leaveType: z2.enum(LEAVE_TYPE_CODES, { error: "Please choose a leave type." }),
   fromDate: day,
   toDate: day,
-  reason: z.string({ error: "Please tell us the reason." }).trim().min(3, "Please add a short reason (at least 3 characters).").max(500, "Keep the reason under 500 characters."),
-  documentIds: z.array(objectId).max(5, "You can attach up to 5 documents.").default([])
+  reason: z2.string({ error: "Please tell us the reason." }).trim().min(3, "Please add a short reason (at least 3 characters).").max(500, "Keep the reason under 500 characters."),
+  documentIds: z2.array(objectId).max(5, "You can attach up to 5 documents.").default([])
 }).refine((v) => v.toDate >= v.fromDate, {
   path: ["toDate"],
   message: "The end date must be on or after the start date."
 });
-var actionSchema = z.object({
-  action: z.enum(APPROVER_ACTIONS, { error: "Choose approve, reject or request info." }),
-  comment: z.string().trim().max(500, "Keep the comment under 500 characters.").optional().default("")
+var actionSchema = z2.object({
+  action: z2.enum(APPROVER_ACTIONS, { error: "Choose approve, reject or request info." }),
+  comment: z2.string().trim().max(500, "Keep the comment under 500 characters.").optional().default("")
 });
-var respondSchema = z.object({
-  comment: z.string().trim().min(3, "Please add a short reply.").max(500),
-  documentIds: z.array(objectId).max(5).default([])
+var respondSchema = z2.object({
+  comment: z2.string().trim().min(3, "Please add a short reply.").max(500),
+  documentIds: z2.array(objectId).max(5).default([])
 });
-var listQuerySchema = z.object({
-  status: z.string().optional()
+var listQuerySchema = z2.object({
+  status: z2.string().optional()
 });
 
 // src/services/leaveService.ts
 import { Types as Types3 } from "mongoose";
 
 // src/models/LeaveRequest.ts
-import { Schema as Schema2, model as model2, Types } from "mongoose";
+import { Schema as Schema4, model as model4, Types } from "mongoose";
 var STATUSES = ["PENDING_MANAGER", "PENDING_HOD", "INFO_REQUESTED", "APPROVED", "REJECTED", "CANCELLED"];
-var leaveRequestSchema = new Schema2(
+var leaveRequestSchema = new Schema4(
   {
     employeeId: { type: String, required: true },
     employeeName: { type: String, required: true },
@@ -285,7 +494,7 @@ var leaveRequestSchema = new Schema2(
 leaveRequestSchema.index({ employeeId: 1, fromDate: -1 });
 leaveRequestSchema.index({ managerId: 1, status: 1 });
 leaveRequestSchema.index({ hodId: 1, status: 1 });
-var LeaveRequest = model2("LeaveRequest", leaveRequestSchema);
+var LeaveRequest = model4("LeaveRequest", leaveRequestSchema);
 
 // src/domain/dates.ts
 var DAY_MS = 24 * 60 * 60 * 1e3;
@@ -314,11 +523,11 @@ function addDays(date, days2) {
 }
 
 // src/services/settingsService.ts
-import { z as z2 } from "zod";
+import { z as z3 } from "zod";
 
 // src/models/Settings.ts
-import { Schema as Schema3, model as model3 } from "mongoose";
-var settingsSchema = new Schema3(
+import { Schema as Schema5, model as model5 } from "mongoose";
+var settingsSchema = new Schema5(
   {
     _id: { type: String, default: "org" },
     longLeaveThresholdDays: { type: Number, default: 3 },
@@ -328,40 +537,7 @@ var settingsSchema = new Schema3(
   },
   { timestamps: true }
 );
-var Settings = model3("Settings", settingsSchema);
-
-// src/models/AuditLog.ts
-import { Schema as Schema4, model as model4 } from "mongoose";
-var auditLogSchema = new Schema4({
-  requestId: { type: Schema4.Types.ObjectId, ref: "LeaveRequest", index: true },
-  actorId: { type: String, required: true },
-  actorName: { type: String, required: true },
-  actorRole: { type: String, required: true },
-  action: { type: String, required: true },
-  fromStatus: { type: String, default: null },
-  toStatus: { type: String, default: null },
-  comment: { type: String, default: "" },
-  meta: { type: Schema4.Types.Mixed, default: {} },
-  at: { type: Date, default: () => /* @__PURE__ */ new Date() }
-});
-auditLogSchema.index({ requestId: 1, at: 1 });
-var AuditLog = model4("AuditLog", auditLogSchema);
-
-// src/services/auditService.ts
-async function record(actor, entry) {
-  await AuditLog.create({
-    ...entry,
-    actorId: actor.id,
-    actorName: actor.name,
-    actorRole: actor.role
-  });
-}
-async function timeline(requestId) {
-  return AuditLog.find({ requestId }).sort({ at: 1 }).lean();
-}
-async function recent(limit = 100) {
-  return AuditLog.find().sort({ at: -1 }).limit(limit).lean();
-}
+var Settings = model5("Settings", settingsSchema);
 
 // src/services/settingsService.ts
 var CACHE_MS2 = 15e3;
@@ -380,10 +556,10 @@ async function getPolicy() {
   cached = { policy, until: Date.now() + CACHE_MS2 };
   return policy;
 }
-var settingsSchema2 = z2.object({
-  longLeaveThresholdDays: z2.coerce.number().int().min(1, "At least 1 day.").max(30, "At most 30 days."),
-  cancelNoticeDays: z2.coerce.number().int().min(0, "Cannot be negative.").max(60, "At most 60 days."),
-  quotas: z2.record(z2.string(), z2.coerce.number().int().min(0, "Quota cannot be negative.").max(365, "At most 365 days.")).refine((q) => Object.keys(q).every((k) => LEAVE_TYPE_CODES.includes(k)), "Unknown leave type.").default({})
+var settingsSchema2 = z3.object({
+  longLeaveThresholdDays: z3.coerce.number().int().min(1, "At least 1 day.").max(30, "At most 30 days."),
+  cancelNoticeDays: z3.coerce.number().int().min(0, "Cannot be negative.").max(60, "At most 60 days."),
+  quotas: z3.record(z3.string(), z3.coerce.number().int().min(0, "Quota cannot be negative.").max(365, "At most 365 days.")).refine((q) => Object.keys(q).every((k) => LEAVE_TYPE_CODES.includes(k)), "Unknown leave type.").default({})
 });
 async function updatePolicy(user, input) {
   const before = await getPolicy();
@@ -427,11 +603,11 @@ async function getBalances(employeeId, year = (/* @__PURE__ */ new Date()).getUT
 import { Types as Types2 } from "mongoose";
 
 // src/models/Document.ts
-import { Schema as Schema5, model as model5 } from "mongoose";
-var documentSchema = new Schema5(
+import { Schema as Schema6, model as model6 } from "mongoose";
+var documentSchema = new Schema6(
   {
     ownerId: { type: String, required: true, index: true },
-    requestId: { type: Schema5.Types.ObjectId, ref: "LeaveRequest", default: null },
+    requestId: { type: Schema6.Types.ObjectId, ref: "LeaveRequest", default: null },
     filename: { type: String, required: true },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },
@@ -439,7 +615,7 @@ var documentSchema = new Schema5(
   },
   { timestamps: true }
 );
-var LeaveDocument = model5("Document", documentSchema);
+var LeaveDocument = model6("Document", documentSchema);
 
 // src/services/documentService.ts
 var ALLOWED_MIME = ["application/pdf", "image/png", "image/jpeg"];
@@ -493,9 +669,9 @@ async function listMeta(ids) {
 }
 
 // src/services/lockService.ts
-import { Schema as Schema6, model as model6 } from "mongoose";
-var lockSchema = new Schema6({ _id: String, expireAt: { type: Date, expires: 0 } });
-var Lock = model6("Lock", lockSchema);
+import { Schema as Schema7, model as model7 } from "mongoose";
+var lockSchema = new Schema7({ _id: String, expireAt: { type: Date, expires: 0 } });
+var Lock = model7("Lock", lockSchema);
 async function withLock(key, fn) {
   try {
     await Lock.create({ _id: key, expireAt: new Date(Date.now() + 1e4) });
@@ -509,90 +685,6 @@ async function withLock(key, fn) {
     return await fn();
   } finally {
     await Lock.deleteOne({ _id: key });
-  }
-}
-
-// src/mail/mailService.ts
-import { Resend } from "resend";
-
-// src/mail/template.ts
-var TONES = {
-  pending: ["#fff4e0", "#b26a00"],
-  hod: ["#eee7fa", "#5c0fd9"],
-  info: ["#e7f1fa", "#216ba5"],
-  approved: ["#e6f4ed", "#1f8a5b"],
-  rejected: ["#fbeae7", "#c2412d"],
-  neutral: ["#f0eef4", "#6b6478"]
-};
-var esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-function renderEmail(c) {
-  const font = "font-family:Inter,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-  const status = c.status ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:4px"><tr><td style="border-left:3px solid ${TONES[c.status.tone][1]};padding:1px 0 1px 12px"><div style="font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#8a8496">Status</div><div style="font-size:14px;font-weight:600;color:${TONES[c.status.tone][1]};margin-top:2px">${esc(c.status.label)}</div></td></tr></table>` : "";
-  const rows2 = (c.rows ?? []).map(([k, v]) => `<tr><td style="padding:10px 0;border-bottom:1px solid #efeaf6;color:#6b6478;font-size:13px;width:38%">${esc(k)}</td><td style="padding:10px 0;border-bottom:1px solid #efeaf6;color:#16121f;font-size:14px;font-weight:600">${esc(v)}</td></tr>`).join("");
-  const quote = c.quote ? `<div style="margin:20px 0 0;padding:14px 16px;border-left:3px solid #ff6300;background:#fff7f1;border-radius:0 10px 10px 0"><div style="font-size:12px;color:#6b6478;margin-bottom:4px">${esc(c.quote.by)} wrote</div><div style="font-size:15px;color:#16121f;line-height:1.5">\u201C${esc(c.quote.text)}\u201D</div></div>` : "";
-  const cta = c.cta ? `<a href="${esc(c.cta.url)}" style="display:inline-block;margin-top:24px;padding:13px 22px;background:#5c0fd9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px">${esc(c.cta.label)}</a>` : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.title)}</title></head>
-<body style="margin:0;padding:0;background:#f4f1fa;${font}">
-<span style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(c.preheader)}</span>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1fa;padding:32px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
-  <tr><td style="background:#5c0fd9;border-radius:18px 18px 0 0;padding:22px 28px;position:relative">
-    <table role="presentation" width="100%"><tr>
-      <td><span style="display:inline-block;width:30px;height:30px;border-radius:8px;background:#ffffff;color:#ff6300;font-weight:900;font-size:18px;line-height:30px;text-align:center">V</span>
-      <span style="color:#ffffff;font-size:20px;font-weight:800;letter-spacing:.12em;vertical-align:middle;margin-left:8px">VISTA</span></td>
-      <td align="right" style="color:#d9c8fb;font-size:12px">Leave, simplified</td>
-    </tr></table>
-  </td></tr>
-  <tr><td style="height:4px;background:linear-gradient(90deg,#ff6300,#ff9a4d);background-color:#ff6300"></td></tr>
-  <tr><td style="background:#ffffff;padding:30px 28px 32px;border-radius:0 0 18px 18px;box-shadow:0 8px 28px rgba(60,20,140,.08)">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6b6478">${esc(c.eyebrow)}</div>
-    <h1 style="margin:8px 0 12px;font-size:24px;line-height:1.25;color:#16121f">${esc(c.title)}</h1>
-    ${status}
-    <p style="margin:16px 0 0;font-size:15px;line-height:1.6;color:#3b3546">${esc(c.intro)}</p>
-    ${rows2 ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px">${rows2}</table>` : ""}
-    ${quote}
-    ${cta}
-  </td></tr>
-  <tr><td style="padding:18px 8px;text-align:center;font-size:12px;color:#8a8496;line-height:1.6">
-    You're receiving this because of activity on your Vista leave account.<br>Vista \xB7 Hasta la vista, see you soon.
-  </td></tr>
-</table></td></tr></table></body></html>`;
-}
-
-// src/mail/mailService.ts
-var client = null;
-function isDemoAddress(email) {
-  return /\+clerk_test@/i.test(email) || /@vista-demo\.com$/i.test(email);
-}
-function appUrl(path = "") {
-  const base = process.env.APP_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:5173");
-  return base.replace(/\/$/, "") + path;
-}
-async function sendEmail(to, subject, content) {
-  if (!to || process.env.NODE_ENV === "test") return { skipped: "test-or-no-recipient" };
-  if (isDemoAddress(to)) {
-    console.log(`\u2709\uFE0E skipped (demo address) \u2192 ${to}: ${subject}`);
-    return { skipped: "demo-address" };
-  }
-  const key = process.env.RESEND_API_KEY;
-  if (!key) {
-    console.log(`\u2709\uFE0E skipped (RESEND_API_KEY not set) \u2192 ${to}: ${subject}`);
-    return { skipped: "not-configured" };
-  }
-  client ??= new Resend(key);
-  try {
-    const { error } = await client.emails.send({
-      from: process.env.EMAIL_FROM ?? "Vista <onboarding@resend.dev>",
-      to,
-      subject,
-      html: renderEmail(content)
-    });
-    if (error) console.error("\u2709\uFE0E Resend error:", error.message);
-    else console.log(`\u2709\uFE0E sent \u2192 ${to}: ${subject}`);
-    return { sent: !error };
-  } catch (err) {
-    console.error("\u2709\uFE0E email failed:", err.message);
-    return { sent: false };
   }
 }
 
@@ -987,11 +1079,11 @@ metaRouter.get("/audit", requireRole("ADMIN", "SYSADMIN"), async (_req, res) => 
 
 // src/routes/team.ts
 import { Router as Router5 } from "express";
-import { z as z3 } from "zod";
+import { z as z4 } from "zod";
 
 // src/models/TeamRequest.ts
-import { Schema as Schema7, model as model7 } from "mongoose";
-var teamRequestSchema = new Schema7(
+import { Schema as Schema8, model as model8 } from "mongoose";
+var teamRequestSchema = new Schema8(
   {
     employeeId: { type: String, required: true, index: true },
     employeeName: { type: String, required: true },
@@ -1005,7 +1097,7 @@ var teamRequestSchema = new Schema7(
 );
 teamRequestSchema.index({ managerId: 1, status: 1 });
 teamRequestSchema.index({ employeeId: 1 }, { unique: true, partialFilterExpression: { status: "PENDING" } });
-var TeamRequest = model7("TeamRequest", teamRequestSchema);
+var TeamRequest = model8("TeamRequest", teamRequestSchema);
 
 // src/services/teamService.ts
 async function searchManagers(query = "") {
@@ -1083,9 +1175,9 @@ teamRouter.get("/managers", async (req, res) => {
 teamRouter.get("/join-request", async (req, res) => {
   res.json(await myRequest(req.user));
 });
-var joinSchema = z3.object({
-  managerId: z3.string({ error: "Choose your manager." }).min(1, "Choose your manager."),
-  message: z3.string().trim().max(300, "Keep the note under 300 characters.").optional().default("")
+var joinSchema = z4.object({
+  managerId: z4.string({ error: "Choose your manager." }).min(1, "Choose your manager."),
+  message: z4.string().trim().max(300, "Keep the note under 300 characters.").optional().default("")
 });
 teamRouter.post("/join-request", async (req, res) => {
   const input = joinSchema.parse(req.body);
@@ -1094,9 +1186,9 @@ teamRouter.post("/join-request", async (req, res) => {
 teamRouter.get("/requests", requireRole("MANAGER"), async (req, res) => {
   res.json(await inbox(req.user));
 });
-var decisionSchema = z3.object({
-  decision: z3.enum(["ACCEPT", "REJECT"], { error: "Choose accept or reject." }),
-  comment: z3.string().trim().max(300).optional().default("")
+var decisionSchema = z4.object({
+  decision: z4.enum(["ACCEPT", "REJECT"], { error: "Choose accept or reject." }),
+  comment: z4.string().trim().max(300).optional().default("")
 });
 teamRouter.post("/requests/:id/decision", requireRole("MANAGER"), async (req, res) => {
   const input = decisionSchema.parse(req.body);
@@ -1204,11 +1296,11 @@ async function approverActivity(since) {
 }
 
 // src/services/orgService.ts
-import { z as z4 } from "zod";
-var orgChangeSchema = z4.object({
-  role: z4.enum(["EMPLOYEE", "MANAGER", "ADMIN"], { error: "Choose employee, manager or admin." }).optional(),
-  managerId: z4.string().min(1).nullable().optional(),
-  department: z4.string().trim().min(1).max(60).optional()
+import { z as z5 } from "zod";
+var orgChangeSchema = z5.object({
+  role: z5.enum(["EMPLOYEE", "MANAGER", "ADMIN"], { error: "Choose employee, manager or admin." }).optional(),
+  managerId: z5.string().min(1).nullable().optional(),
+  department: z5.string().trim().min(1).max(60).optional()
 });
 async function changeOrg(actor, targetId, input) {
   const target = await User.findOne({ clerkId: targetId }).lean();
@@ -1274,6 +1366,34 @@ adminRouter.put("/settings", requireRole("SYSADMIN"), async (req, res) => {
 adminRouter.patch("/org/:id", requireRole("SYSADMIN"), async (req, res) => {
   res.json(await changeOrg(req.user, String(req.params.id), orgChangeSchema.parse(req.body)));
 });
+adminRouter.get("/org/invites", requireRole("SYSADMIN"), async (_req, res) => {
+  res.json(await listOpenInvites());
+});
+adminRouter.post("/org/invites", requireRole("SYSADMIN"), async (req, res) => {
+  res.status(201).json(await createInvite(req.user, inviteSchema2.parse(req.body)));
+});
+adminRouter.delete("/org/invites/:id", requireRole("SYSADMIN"), async (req, res) => {
+  res.json(await cancelInvite(req.user, String(req.params.id)));
+});
+
+// src/routes/profile.ts
+import { Router as Router7 } from "express";
+import { z as z6 } from "zod";
+var profileRouter = Router7();
+var profileSchema = z6.object({
+  name: z6.string().trim().min(2, "Please enter your full name.").max(60),
+  jobTitle: z6.string().trim().min(2, "Please enter your job title.").max(60),
+  // Accept the ways people actually type numbers ("+91 98765 43210", "98765-43210"), store digits only.
+  phone: z6.string().transform((v) => v.replace(/[\s-]/g, "")).pipe(z6.string().regex(/^((\+91)?[6-9]\d{9})?$/, "Enter a valid Indian mobile number, e.g. +91 98765 43210.")).default(""),
+  location: z6.string().trim().min(2, "Please choose your work location.").max(60)
+});
+profileRouter.patch("/me", async (req, res) => {
+  const input = profileSchema.parse(req.body);
+  const updated = await User.findOneAndUpdate({ clerkId: req.user.id }, { $set: input }, { returnDocument: "after" }).lean();
+  forgetUser(req.user.id);
+  await record(req.user, { action: "PROFILE_UPDATED", meta: { fields: Object.keys(input) } });
+  res.json(updated ? toCurrentUser(updated) : null);
+});
 
 // src/db.ts
 import mongoose from "mongoose";
@@ -1308,6 +1428,7 @@ function createApp(options = {}) {
   app.use("/api/documents", documentsRouter);
   app.use("/api/team", teamRouter);
   app.use("/api", adminRouter);
+  app.use("/api", profileRouter);
   app.use("/api", (_req, res) => {
     res.status(404).json({ error: { code: "NOT_FOUND", message: "That API route does not exist." } });
   });

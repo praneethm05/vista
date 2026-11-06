@@ -16,12 +16,12 @@ import { AuditLog } from '../models/AuditLog.js';
 import { addDays, formatDay, todayUtc } from '../domain/dates.js';
 
 const app = createApp({ connect: false });
-type P = { id: string; name: string; email: string; role: 'EMPLOYEE' | 'MANAGER' | 'ADMIN' | 'SYSADMIN'; department: string; employeeCode: string; managerId: string | null; hodId: string | null; avatarSeed: string };
+type P = { id: string; name: string; email: string; role: 'EMPLOYEE' | 'MANAGER' | 'ADMIN' | 'SYSADMIN'; department: string; employeeCode: string; jobTitle: string; phone: string; location: string; managerId: string | null; hodId: string | null; avatarSeed: string };
 const people: Record<string, P> = {};
 const results: { area: string; scenario: string; expected: number; actual: number; code?: string; ok: boolean }[] = [];
 
 function person(id: string, name: string, role: P['role'], department: string, managerId: string | null, hodId: string | null) {
-  people[id] = { id, name, email: `${id}@acme.in`, role, department, employeeCode: `VST-${1000 + Object.keys(people).length}`, managerId, hodId, avatarSeed: id };
+  people[id] = { id, name, email: `${id}@acme.in`, role, department, employeeCode: `VST-${1000 + Object.keys(people).length}`, jobTitle: 'Engineer', phone: '', location: 'Bengaluru', managerId, hodId, avatarSeed: id };
 }
 const as = (id: string) => ({ 'x-test-user': JSON.stringify(people[id]) });
 let monday = addDays(todayUtc(), 14);

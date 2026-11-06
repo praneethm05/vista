@@ -90,6 +90,7 @@ export function OrgPage() {
           <div className="flex flex-wrap items-center gap-3">
             <input className="field max-w-sm" placeholder="Find a person, department or ID" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search people" />
             <span className="text-tiny text-muted">{all.length} people · {managers.length} teams · click anyone to edit</span>
+            <button className="btn-accent ml-auto" onClick={() => { setSelected(null); setDraft(null); }}>+ Add person</button>
           </div>
           {admins.map((a) => (
             <div key={a.id} className="card flex flex-wrap items-center gap-3 p-3">
@@ -105,7 +106,7 @@ export function OrgPage() {
 
         <aside className="card h-fit space-y-5 p-5 sm:p-6 lg:sticky lg:top-24">
           {!selected || !draft ? (
-            <p className="text-small text-muted">Select a person in the tree to change their role, team or department.</p>
+            <AddPerson managers={all.filter((p) => p.role === 'MANAGER' || p.role === 'ADMIN')} />
           ) : (
             <>
               <div className="flex items-center gap-3">
@@ -147,5 +148,82 @@ export function OrgPage() {
         </aside>
       </div>
     </>
+  );
+}
+
+interface Invite { _id: string; email: string; name: string; role: Role; department: string; jobTitle: string; managerId: string | null; createdAt: string }
+
+/** Pre-register someone before they join: they get their role and team the moment they first sign in. */
+function AddPerson({ managers }: { managers: Person[] }) {
+  const api = useApi();
+  const invites = useQuery<Invite[]>('/org/invites');
+  const blank = { name: '', email: '', role: 'EMPLOYEE' as Role, managerId: managers.find((m) => m.role === 'MANAGER')?.id ?? '', department: '', jobTitle: '' };
+  const [form, setForm] = useState(blank);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
+  const options = managers.filter((m) => form.role !== 'MANAGER' || m.role === 'ADMIN');
+
+  async function add() {
+    setBusy(true);
+    setErrors({});
+    setNotice(null);
+    try {
+      const mgr = managers.find((m) => m.id === form.managerId);
+      await api('/org/invites', { method: 'POST', body: JSON.stringify({ ...form, managerId: form.role === 'ADMIN' ? null : form.managerId || null, department: form.department || mgr?.department || 'Unassigned' }) });
+      setNotice({ tone: 'success', text: `${form.name} is added. They'll land in their team when they first sign in with ${form.email}.` });
+      setForm(blank);
+      invites.reload();
+    } catch (e) {
+      setErrors((e as ApiError).fields ?? {});
+      setNotice({ tone: 'danger', text: (e as ApiError).message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3>Add a person</h3>
+        <p className="text-tiny text-muted">Pre-register a new joiner. Or click anyone in the teams to edit them.</p>
+      </div>
+      <input className="field" placeholder="Full name" value={form.name} onChange={set('name')} aria-label="Full name" />
+      <input className="field" type="email" placeholder="Work email" value={form.email} onChange={set('email')} aria-label="Work email" />
+      {errors.email && <p className="text-small text-danger">{errors.email}</p>}
+      <div className="grid grid-cols-2 gap-2">
+        <select className="field" value={form.role} onChange={set('role')} aria-label="Role">
+          <option value="EMPLOYEE">Employee</option>
+          <option value="MANAGER">Manager</option>
+          <option value="ADMIN">Admin · HOD</option>
+        </select>
+        <input className="field" placeholder="Job title" value={form.jobTitle} onChange={set('jobTitle')} aria-label="Job title" />
+      </div>
+      {form.role !== 'ADMIN' && (
+        <select className="field" value={form.managerId} onChange={set('managerId')} aria-label="Reports to">
+          <option value="">Reports to…</option>
+          {options.map((m) => <option key={m.id} value={m.id}>{m.name} · {m.department}</option>)}
+        </select>
+      )}
+      <input className="field" placeholder="Department (defaults to manager's)" value={form.department} onChange={set('department')} aria-label="Department" />
+      {notice && <Alert tone={notice.tone}>{notice.text}</Alert>}
+      <button className="btn-primary w-full" disabled={busy || !form.name || !form.email} onClick={add}>{busy ? 'Adding…' : 'Add person'}</button>
+
+      {!!invites.data?.length && (
+        <div className="border-t border-line pt-3">
+          <p className="mb-2 text-small font-semibold">Invited · not signed in yet ({invites.data.length})</p>
+          <ul className="space-y-1.5">
+            {invites.data.map((i) => (
+              <li key={i._id} className="flex items-center gap-2 text-small">
+                <span className="min-w-0 flex-1 truncate">{i.name} <span className="text-tiny text-muted">{i.email}</span></span>
+                <RoleTag role={i.role} />
+                <button className="text-tiny font-semibold text-danger" onClick={async () => { await api(`/org/invites/${i._id}`, { method: 'DELETE' }); invites.reload(); }}>Cancel</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

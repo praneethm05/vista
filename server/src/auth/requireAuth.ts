@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { clerkClient, getAuth } from '@clerk/express';
 import { AppError } from '../domain/errors.js';
 import { User } from '../models/User.js';
+import { claimInvite } from '../services/inviteService.js';
 import type { CurrentUser, Role } from './user.js';
 
 const CACHE_MS = 30_000;
@@ -47,6 +48,16 @@ async function createFromClerk(clerkId: string) {
   const email = clerkUser.primaryEmailAddress?.emailAddress ?? '';
   const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || email.split('@')[0] || 'New employee';
   try {
+    // Pre-registered by the system admin? Then they arrive with their role and team already set.
+    const invite = await claimInvite(clerkId, email);
+    if (invite) {
+      const manager = invite.managerId ? await User.findOne({ clerkId: invite.managerId }).lean() : null;
+      const hodId = !manager ? null : manager.role === 'ADMIN' ? manager.clerkId : (manager.hodId ?? manager.managerId ?? manager.clerkId);
+      return await User.create({
+        clerkId, name: invite.name, email, role: invite.role, employeeCode: await nextEmployeeCode(),
+        department: invite.department, jobTitle: invite.jobTitle, managerId: invite.managerId, hodId,
+      });
+    }
     return await User.create({ clerkId, name, email, role: 'EMPLOYEE', employeeCode: await nextEmployeeCode() });
   } catch (err) {
     // Two first requests raced: the other one created the profile.
@@ -61,7 +72,7 @@ export async function nextEmployeeCode() {
   return `VST-${1001 + count}-${Math.random().toString(36).slice(2, 4).toUpperCase()}`;
 }
 
-export function toCurrentUser(doc: { clerkId: string; name: string; email: string; role: string; department?: string | null; employeeCode: string; managerId?: string | null; hodId?: string | null }): CurrentUser {
+export function toCurrentUser(doc: { clerkId: string; name: string; email: string; role: string; department?: string | null; employeeCode: string; jobTitle?: string | null; phone?: string | null; location?: string | null; managerId?: string | null; hodId?: string | null }): CurrentUser {
   return {
     id: doc.clerkId,
     name: doc.name,
@@ -69,6 +80,9 @@ export function toCurrentUser(doc: { clerkId: string; name: string; email: strin
     role: doc.role as Role,
     department: doc.department ?? 'Unassigned',
     employeeCode: doc.employeeCode,
+    jobTitle: doc.jobTitle ?? '',
+    phone: doc.phone ?? '',
+    location: doc.location ?? '',
     managerId: doc.managerId ?? null,
     hodId: doc.hodId ?? null,
     avatarSeed: doc.email || doc.clerkId,

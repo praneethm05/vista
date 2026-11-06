@@ -57,7 +57,7 @@ const team = {
 for (const d of DEMO) {
   await User.updateOne(
     { clerkId: ids[d.key] },
-    { $set: { name: `${d.firstName} ${d.lastName}`, email: d.email, role: d.role, employeeCode: d.code, department, ...team[d.key] } },
+    { $set: { name: `${d.firstName} ${d.lastName}`, email: d.email, role: d.role, employeeCode: d.code, department, location: 'Bengaluru', jobTitle: { sysadmin: 'IT Administrator', admin: 'Head of Engineering', manager: 'Engineering Manager', employee: 'Software Engineer' }[d.key], ...team[d.key] } },
     { upsert: true },
   );
 }

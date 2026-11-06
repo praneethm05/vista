@@ -8,6 +8,9 @@ export interface CurrentUser {
   role: Role;
   department: string;
   employeeCode: string;
+  jobTitle: string;
+  phone: string;
+  location: string;
   managerId: string | null;
   hodId: string | null;
   avatarSeed: string;

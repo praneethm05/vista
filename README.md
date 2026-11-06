@@ -56,7 +56,7 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 | Command | What it does |
 |---|---|
 | `npm run dev` | API (`tsx watch`) + web (Vite) together |
-| `npm test` | 25 tests + 3 property-based tests (3,000 random cases): workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
+| `npm test` | 29 tests + 3 property-based tests (3,000 random cases): workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
 | `npm run build` | Production build of the client |
 | `cd server && npm run simulate` | 20-person company, 103 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
 | `npm --prefix server run seed:org` | Fill the database with a realistic company: 22 people in 4 departments, about 60 leave requests over 10 months, people on leave today, and queues waiting for the demo manager and admin. Re-runnable; real accounts are never touched; seeded colleagues never receive email |
@@ -100,6 +100,14 @@ The sign-in page asks for an **organisation email**; personal domains are accept
   - a manager can't be demoted while people still report to them
 - The second-level approver is recalculated automatically, and reports follow when their manager moves.
 - Every change is audited (`ORG_CHANGED`). Requests already in progress keep their approvers.
+
+### New joiners
+- **Pre-registered by the sysadmin** (Organisation → **+ Add person**: name, email, role, manager, department, job title):
+  - On their first sign-in with that email, they land **directly in their team** with their role.
+  - Real addresses get a "You've been added to Vista" email. Invites can be cancelled until they're used.
+- **Self sign-up** (not pre-registered):
+  1. **Profile:** full name, job title, mobile (validated Indian number, optional), work location.
+  2. **Join a team:** the manager accepts or declines.
 
 ### System admin settings (no code change needed)
 - Long-leave threshold (default 3 days).

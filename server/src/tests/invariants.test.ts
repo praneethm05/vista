@@ -16,7 +16,7 @@ process.env.NODE_ENV = 'test';
 const app = createApp({ connect: false });
 let mongo: MongoMemoryServer;
 const u = (id: string, role: string, managerId: string | null, hodId: string | null) =>
-  ({ id, name: id.toUpperCase(), email: `${id}@x.com`, role, department: 'Eng', employeeCode: `VST-${id}`, managerId, hodId, avatarSeed: id });
+  ({ id, name: id.toUpperCase(), email: `${id}@x.com`, role, department: 'Eng', employeeCode: `VST-${id}`, jobTitle: '', phone: '', location: '', managerId, hodId, avatarSeed: id });
 const people = {
   emp: u('emp', 'EMPLOYEE', 'mgr', 'hod'),
   mgr: u('mgr', 'MANAGER', 'hod', 'hod'),

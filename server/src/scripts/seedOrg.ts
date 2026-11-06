@@ -39,7 +39,8 @@ let code = 10;
 async function addPerson(name: string, role: P['role'], department: string, managerId: string) {
   const clerkId = `seed_${name.toLowerCase().replace(/[^a-z]+/g, '_')}`;
   const p: P = { clerkId, name, email: `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@vista-demo.com`, role, department, managerId, hodId: admin.clerkId };
-  await User.create({ ...p, employeeCode: `VST-${String(code++).padStart(4, '0')}` });
+  const titles: Record<string, string> = { Engineering: 'Software Engineer', Operations: 'Operations Analyst', 'Customer Experience': 'CX Specialist', 'Product & Design': 'Product Designer' };
+  await User.create({ ...p, employeeCode: `VST-${String(code++).padStart(4, '0')}`, jobTitle: role === 'MANAGER' ? `${department} Manager` : titles[department] ?? 'Associate', location: pick(['Bengaluru', 'Mumbai', 'Pune', 'Hyderabad']) });
   people.push(p);
   return p;
 }

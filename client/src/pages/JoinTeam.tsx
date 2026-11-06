@@ -4,6 +4,7 @@ import { useMe } from '../lib/me';
 import { fmtTime } from '../lib/format';
 import type { ManagerOption, TeamRequest } from '../lib/types';
 import { Alert, Avatar, PageHeader, Spinner } from '../components/ui';
+import { ProfileStep } from '../components/ProfileStep';
 
 /** First stop for a new sign-up: find your manager and ask to join their team. */
 export function JoinTeam() {
@@ -33,6 +34,7 @@ export function JoinTeam() {
     }
   }
 
+  const needsProfile = !me.jobTitle || !me.location;
   const pending = existing.data?.status === 'PENDING' ? existing.data : null;
   const rejected = existing.data?.status === 'REJECTED' ? existing.data : null;
 
@@ -41,6 +43,8 @@ export function JoinTeam() {
       <PageHeader eyebrow={`Welcome, ${me.name.split(' ')[0]}`} title="Join your team" />
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <section className="card space-y-5 p-5 sm:p-7">
+          {needsProfile ? <ProfileStep /> : (<>
+          <p className="eyebrow">Step 2 of 2</p>
           {existing.loading && !existing.data ? <Spinner /> : pending ? (
             <div className="space-y-4">
               <div className="flex items-center gap-3 rounded-card bg-warning-tint p-4">
@@ -89,12 +93,13 @@ export function JoinTeam() {
               <button className="btn-primary" disabled={busy} onClick={send}>{busy ? 'Sending…' : `Ask ${picked.name.split(' ')[0]} to add me`}</button>
             </div>
           )}
+          </>)}
         </section>
 
         <aside className="card h-fit space-y-3 p-5 sm:p-6">
           <p className="eyebrow">How it works</p>
           <ol className="space-y-3 text-small">
-            {['Find your manager and send a request.', 'Your manager accepts you into their team.', 'Apply for leave. Longer leave also goes to the admin (HOD).'].map((t, i) => (
+            {['Complete your profile.', 'Find your manager and send a request.', 'Your manager accepts you into their team.', 'Apply for leave. Longer leave also goes to the admin (HOD).'].map((t, i) => (
               <li key={t} className="flex gap-3"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand text-tiny font-bold text-white">{i + 1}</span>{t}</li>
             ))}
           </ol>

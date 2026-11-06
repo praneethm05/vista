@@ -11,10 +11,10 @@ const app = createApp({ connect: false });
 let mongo: MongoMemoryServer;
 
 const users = {
-  emp: { id: 'emp', name: 'Asha Rao', email: 'asha@x.com', role: 'EMPLOYEE', department: 'Eng', managerId: 'mgr', hodId: 'hod', employeeCode: 'VST-1', avatarSeed: 'asha' },
-  emp2: { id: 'emp2', name: 'Ravi K', email: 'ravi@x.com', role: 'EMPLOYEE', department: 'Eng', managerId: 'mgr', hodId: 'hod', employeeCode: 'VST-1', avatarSeed: 'ravi' },
-  mgr: { id: 'mgr', name: 'Meera M', email: 'meera@x.com', role: 'MANAGER', department: 'Eng', managerId: null, hodId: 'hod', employeeCode: 'VST-1', avatarSeed: 'meera' },
-  hod: { id: 'hod', name: 'Harish H', email: 'harish@x.com', role: 'ADMIN', department: 'Eng', managerId: null, hodId: null, employeeCode: 'VST-1', avatarSeed: 'harish' },
+  emp: { id: 'emp', name: 'Asha Rao', email: 'asha@x.com', role: 'EMPLOYEE', department: 'Eng', managerId: 'mgr', hodId: 'hod', employeeCode: 'VST-1', jobTitle: '', phone: '', location: '', avatarSeed: 'asha' },
+  emp2: { id: 'emp2', name: 'Ravi K', email: 'ravi@x.com', role: 'EMPLOYEE', department: 'Eng', managerId: 'mgr', hodId: 'hod', employeeCode: 'VST-1', jobTitle: '', phone: '', location: '', avatarSeed: 'ravi' },
+  mgr: { id: 'mgr', name: 'Meera M', email: 'meera@x.com', role: 'MANAGER', department: 'Eng', managerId: null, hodId: 'hod', employeeCode: 'VST-1', jobTitle: '', phone: '', location: '', avatarSeed: 'meera' },
+  hod: { id: 'hod', name: 'Harish H', email: 'harish@x.com', role: 'ADMIN', department: 'Eng', managerId: null, hodId: null, employeeCode: 'VST-1', jobTitle: '', phone: '', location: '', avatarSeed: 'harish' },
 };
 const as = (u: keyof typeof users) => ({ 'x-test-user': JSON.stringify(users[u]) });
 // Start on the next Monday so working-day maths is predictable.
@@ -120,7 +120,7 @@ describe('leave API', () => {
   it('new employee asks to join a team; manager accepts once (second click 409)', async () => {
     await User.create({ clerkId: 'mgr', name: 'Meera M', email: 'meera@x.com', role: 'MANAGER', employeeCode: 'VST-0002', hodId: 'hod', department: 'Eng' });
     await User.create({ clerkId: 'new', name: 'Neha N', email: 'neha@x.com', role: 'EMPLOYEE', employeeCode: 'VST-0009' });
-    const newbie = { 'x-test-user': JSON.stringify({ id: 'new', name: 'Neha N', email: 'neha@x.com', role: 'EMPLOYEE', department: 'Unassigned', employeeCode: 'VST-0009', managerId: null, hodId: null, avatarSeed: 'neha' }) };
+    const newbie = { 'x-test-user': JSON.stringify({ id: 'new', name: 'Neha N', email: 'neha@x.com', role: 'EMPLOYEE', department: 'Unassigned', employeeCode: 'VST-0009', jobTitle: '', phone: '', location: '', managerId: null, hodId: null, avatarSeed: 'neha' }) };
 
     const blocked = await request(app).post('/api/leaves').set(newbie).send({ leaveType: 'CASUAL', fromDate: day(0), toDate: day(0), reason: 'Errand' });
     expect(blocked.body.error.code).toBe('NO_TEAM');
@@ -136,5 +136,14 @@ describe('leave API', () => {
     expect((await request(app).post(`/api/team/requests/${id}/decision`).set(as('mgr')).send({ decision: 'ACCEPT' })).status).toBe(200);
     expect((await request(app).post(`/api/team/requests/${id}/decision`).set(as('mgr')).send({ decision: 'REJECT' })).status).toBe(409);
     expect(await User.findOne({ clerkId: 'new' }).lean()).toMatchObject({ managerId: 'mgr', hodId: 'hod' });
+  });
+
+  it('profile: validates phone and saves name, title and location', async () => {
+    await User.create({ clerkId: 'emp', name: 'asha', email: 'asha@x.com', role: 'EMPLOYEE', employeeCode: 'VST-0100' });
+    const bad = await request(app).patch('/api/me').set(as('emp')).send({ name: 'Asha Rao', jobTitle: 'Engineer', phone: '12345', location: 'Bengaluru' });
+    expect(bad.status).toBe(400);
+    const ok = await request(app).patch('/api/me').set(as('emp')).send({ name: 'Asha Rao', jobTitle: 'Software Engineer', phone: '+91 98765 43210', location: 'Bengaluru' });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ name: 'Asha Rao', jobTitle: 'Software Engineer', location: 'Bengaluru' });
   });
 });
