@@ -11,6 +11,7 @@ Every action is recorded in an append-only audit log.
 
 | | |
 |---|---|
+| **Live demo** | https://vista-btyc.vercel.app (demo logins below · verification code `424242`) |
 | **Stack** | React + Vite + TypeScript · Node + Express 5 + TypeScript · MongoDB Atlas (Mongoose) · Clerk auth (Google + email) · Tailwind CSS 4 · Vitest + Supertest |
 | **Repo layout** | `server/` REST API · `client/` React SPA · `docs/` problem statement, API reference, plan |
 | **API reference** | [`docs/API.md`](docs/API.md): every endpoint with curl examples (paste them into Postman) |
