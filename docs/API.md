@@ -349,7 +349,39 @@ curl -s $BASE/team/members -H "Authorization: Bearer $TOKEN_MGR"
 
 > An employee with no team gets `422 NO_TEAM` from `POST /leaves`.
 
-## 15. Audit log (Admin)
+## 15. Dashboard, policy and organisation
+
+```bash
+# Dashboard: manager → their team; admin and sysadmin → everyone
+curl -s $BASE/stats -H "Authorization: Bearer $TOKEN_MGR"
+
+# Current leave policy (anyone signed in)
+curl -s $BASE/settings -H "$AUTH"
+
+# Change the policy (sysadmin only)
+curl -s -X PUT $BASE/settings -H "Authorization: Bearer $TOKEN_SYS" -H "Content-Type: application/json" \
+  -d '{"longLeaveThresholdDays":5,"cancelNoticeDays":2,"quotas":{"ANNUAL":20,"CASUAL":8}}'
+
+# Reshape the org (sysadmin only): role, manager, department
+curl -s -X PATCH $BASE/org/<clerkUserId> -H "Authorization: Bearer $TOKEN_SYS" -H "Content-Type: application/json" \
+  -d '{"role":"EMPLOYEE","managerId":"<managerClerkId>","department":"Engineering"}'
+```
+
+**`PATCH /org/:id` errors:**
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `INVALID_MANAGER` | The new manager isn't a manager or admin, or a manager is placed under a non-admin |
+| 400 | `SELF_MANAGER` | Someone is set to report to themselves |
+| 400 | `CYCLE` | The change would create a reporting loop |
+| 409 | `HAS_REPORTS` | A manager with reports is demoted to employee |
+| 403 | | The caller isn't the sysadmin |
+
+**Taking back approved leave** uses the same cancel endpoint: `POST /leaves/:id/cancel` on an `APPROVED` request.
+- Works if it starts at least `cancelNoticeDays` days from today.
+- Otherwise `409 TOO_LATE_TO_CANCEL`.
+
+## 16. Audit log (Admin)
 
 ```bash
 curl -s $BASE/audit -H "Authorization: Bearer $TOKEN_HOD"

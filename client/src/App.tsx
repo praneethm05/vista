@@ -14,6 +14,7 @@ import { JoinTeam } from './pages/JoinTeam';
 import { TeamPage } from './pages/TeamPage';
 import { Dashboard } from './pages/Dashboard';
 import { SettingsPage } from './pages/SettingsPage';
+import { OrgPage } from './pages/OrgPage';
 
 function RoleRoutes() {
   const { me } = useMe();
@@ -40,6 +41,7 @@ function RoleRoutes() {
         {(me.role === 'ADMIN' || me.role === 'SYSADMIN') && <Route path="/people" element={<TeamPage />} />}
         {(me.role === 'ADMIN' || me.role === 'SYSADMIN') && <Route path="/audit" element={<AuditPage />} />}
         {me.role === 'SYSADMIN' && <Route path="/settings" element={<SettingsPage />} />}
+        {me.role === 'SYSADMIN' && <Route path="/org" element={<OrgPage />} />}
         <Route path="*" element={<Navigate to={home} replace />} />
       </Route>
     </Routes>

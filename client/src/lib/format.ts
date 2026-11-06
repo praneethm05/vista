@@ -19,6 +19,7 @@ export const ACTION_LABEL: Record<string, string> = {
   CANCELLED: 'Cancelled the request',
   DOCUMENT_UPLOADED: 'Uploaded a document',
   WITHDRAWN: 'Took back approved leave',
+  ORG_CHANGED: 'Changed the organisation',
   SETTINGS_UPDATED: 'Changed leave policy',
   TEAM_JOIN_REQUESTED: 'Asked to join a team',
   TEAM_JOIN_ACCEPTED: 'Accepted a team member',

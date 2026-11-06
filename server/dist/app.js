@@ -1145,6 +1145,57 @@ async function dashboard(user) {
   };
 }
 
+// src/services/orgService.ts
+import { z as z4 } from "zod";
+var orgChangeSchema = z4.object({
+  role: z4.enum(["EMPLOYEE", "MANAGER", "ADMIN"], { error: "Choose employee, manager or admin." }).optional(),
+  managerId: z4.string().min(1).nullable().optional(),
+  department: z4.string().trim().min(1).max(60).optional()
+});
+async function changeOrg(actor, targetId, input) {
+  const target = await User.findOne({ clerkId: targetId }).lean();
+  if (!target) throw notFound("Person");
+  if (target.role === "SYSADMIN") throw new AppError("FORBIDDEN", 403, "The system admin account cannot be changed here.");
+  const role = input.role ?? target.role;
+  let managerId = input.managerId === void 0 ? target.managerId : input.managerId;
+  if (role === "ADMIN") managerId = null;
+  const reports = await User.countDocuments({ managerId: targetId });
+  if (role === "EMPLOYEE" && reports > 0) {
+    throw new AppError("HAS_REPORTS", 409, `${target.name} still has ${reports} people reporting to them. Move them to another manager first.`);
+  }
+  let hodId = null;
+  if (managerId) {
+    if (managerId === targetId) throw new AppError("SELF_MANAGER", 400, "Someone cannot report to themselves.");
+    const manager = await User.findOne({ clerkId: managerId }).lean();
+    if (!manager || !["MANAGER", "ADMIN"].includes(manager.role)) {
+      throw new AppError("INVALID_MANAGER", 400, "Pick a manager or admin as the reporting manager.");
+    }
+    if (role === "MANAGER" && manager.role !== "ADMIN") {
+      throw new AppError("INVALID_MANAGER", 400, "Managers report to an admin (HOD).");
+    }
+    let cursor = manager.managerId;
+    for (let depth = 0; cursor && depth < 20; depth++) {
+      if (cursor === targetId) throw new AppError("CYCLE", 400, "That would create a reporting loop.");
+      cursor = (await User.findOne({ clerkId: cursor }).select("managerId").lean())?.managerId;
+    }
+    hodId = manager.role === "ADMIN" ? manager.clerkId : manager.hodId ?? manager.managerId ?? manager.clerkId;
+  }
+  const department = input.department ?? target.department;
+  await User.updateOne({ clerkId: targetId }, { $set: { role, managerId, hodId, department } });
+  forgetUser(targetId);
+  if (role === "MANAGER") {
+    const reportIds = (await User.find({ managerId: targetId }).select("clerkId").lean()).map((u) => u.clerkId);
+    await User.updateMany({ managerId: targetId }, { $set: { hodId: hodId ?? targetId } });
+    reportIds.forEach(forgetUser);
+  }
+  await record(actor, {
+    action: "ORG_CHANGED",
+    comment: `${target.name}: ${target.role} \u2192 ${role}`,
+    meta: { targetId, before: { role: target.role, managerId: target.managerId, department: target.department }, after: { role, managerId, department } }
+  });
+  return User.findOne({ clerkId: targetId }).lean();
+}
+
 // src/routes/admin.ts
 var adminRouter = Router6();
 adminRouter.get("/stats", requireRole("MANAGER", "ADMIN", "SYSADMIN"), async (req, res) => {
@@ -1155,6 +1206,9 @@ adminRouter.get("/settings", async (_req, res) => {
 });
 adminRouter.put("/settings", requireRole("SYSADMIN"), async (req, res) => {
   res.json(await updatePolicy(req.user, settingsSchema2.parse(req.body)));
+});
+adminRouter.patch("/org/:id", requireRole("SYSADMIN"), async (req, res) => {
+  res.json(await changeOrg(req.user, String(req.params.id), orgChangeSchema.parse(req.body)));
 });
 
 // src/db.ts

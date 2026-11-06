@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireRole } from '../auth/requireAuth.js';
 import { dashboard } from '../services/statsService.js';
 import { getPolicy, settingsSchema, updatePolicy } from '../services/settingsService.js';
+import { changeOrg, orgChangeSchema } from '../services/orgService.js';
 
 export const adminRouter = Router();
 
@@ -15,4 +16,8 @@ adminRouter.get('/settings', async (_req, res) => {
 
 adminRouter.put('/settings', requireRole('SYSADMIN'), async (req, res) => {
   res.json(await updatePolicy(req.user!, settingsSchema.parse(req.body)));
+});
+
+adminRouter.patch('/org/:id', requireRole('SYSADMIN'), async (req, res) => {
+  res.json(await changeOrg(req.user!, String(req.params.id), orgChangeSchema.parse(req.body)));
 });

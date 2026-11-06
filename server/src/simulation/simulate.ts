@@ -16,7 +16,7 @@ import { AuditLog } from '../models/AuditLog.js';
 import { addDays, formatDay, todayUtc } from '../domain/dates.js';
 
 const app = createApp({ connect: false });
-type P = { id: string; name: string; email: string; role: 'EMPLOYEE' | 'MANAGER' | 'ADMIN'; department: string; employeeCode: string; managerId: string | null; hodId: string | null; avatarSeed: string };
+type P = { id: string; name: string; email: string; role: 'EMPLOYEE' | 'MANAGER' | 'ADMIN' | 'SYSADMIN'; department: string; employeeCode: string; managerId: string | null; hodId: string | null; avatarSeed: string };
 const people: Record<string, P> = {};
 const results: { area: string; scenario: string; expected: number; actual: number; code?: string; ok: boolean }[] = [];
 
@@ -181,6 +181,19 @@ await check('Join team', 'Fatima double-clicks accept → 409', 409, request(app
 await check('Join team', 'Employee (Arjun) opens join inbox → 403', 403, request(app).get('/api/team/requests').set(as(arjun)));
 people[zoya] = { ...people[zoya], managerId: 'm-cx', hodId: 'admin', department: teams.cx }; // what the next login sees
 await check('Join team', 'Zoya can now apply', 201, apply(zoya, { leaveType: 'CASUAL', fromDate: d(10), toDate: d(10), reason: 'Errand' }));
+
+// ── 9b. System admin reshapes the org ─────────────────────────────────────────
+person('sys', 'Sam Kurian', 'SYSADMIN', 'IT', null, null);
+await User.create({ clerkId: 'sys', name: 'Sam Kurian', email: 'sys@acme.in', role: 'SYSADMIN', employeeCode: 'VST-0000', department: 'IT' });
+await check('Org', 'Manager tries to move people → 403', 403, request(app).patch('/api/org/e-rohan').set(as('m-eng')).send({ managerId: 'm-eng' }));
+await check('Org', 'Sysadmin moves Rohan from Ops to Engineering', 200, request(app).patch('/api/org/e-rohan').set(as('sys')).send({ managerId: 'm-eng', department: 'Engineering' }));
+await check('Org', 'Sysadmin promotes Kabir to manager under the admin', 200, request(app).patch('/api/org/e-kabir').set(as('sys')).send({ role: 'MANAGER', managerId: 'admin' }));
+await check('Org', 'Put Isha under the new manager Kabir', 200, request(app).patch('/api/org/e-isha').set(as('sys')).send({ managerId: 'e-kabir' }));
+await check('Org', 'Demote Kabir while Isha reports to him → blocked', 409, request(app).patch('/api/org/e-kabir').set(as('sys')).send({ role: 'EMPLOYEE' }));
+await check('Org', 'Make Kabir report to Isha (loop) → blocked', 400, request(app).patch('/api/org/e-kabir').set(as('sys')).send({ managerId: 'e-isha' }));
+await check('Org', 'Put someone under an employee → blocked', 400, request(app).patch('/api/org/e-tara').set(as('sys')).send({ managerId: 'e-yash' }));
+const isha = await User.findOne({ clerkId: 'e-isha' }).lean();
+results.push({ area: 'Org', scenario: "Isha's second-level approver becomes Kabir's admin", expected: 1, actual: isha?.hodId === 'admin' ? 1 : 0, ok: isha?.hodId === 'admin' });
 
 // ── 10. Year boundary ────────────────────────────────────────────────────────
 const y = todayUtc().getUTCFullYear();

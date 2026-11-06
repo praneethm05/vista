@@ -57,7 +57,7 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 | `npm run dev` | API (`tsx watch`) + web (Vite) together |
 | `npm test` | 20 tests: workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
 | `npm run build` | Production build of the client |
-| `cd server && npm run simulate` | 20-person company, 93 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
+| `cd server && npm run simulate` | 20-person company, 101 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
 | `npm run seed` | Create or refresh the 3 demo accounts (Admin, Manager, Employee) |
 
 ---
@@ -82,6 +82,17 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 ### Taking back leave
 - Employees can **take back approved leave** up to *N* days before it starts. *N* is set by the sysadmin; the default is 2.
 - The balance is restored automatically, the manager is emailed, and the audit log records `WITHDRAWN`.
+
+### Organisation (system admin)
+- A **full reporting tree**: Admin (HOD) → managers → employees, plus a "Not in a team yet" group.
+- Click anyone to change their **role** (employee, manager or admin), **who they report to** and their **department**.
+- **Guards:**
+  - managers report to an admin
+  - nobody reports to an employee or to themselves
+  - no reporting loops
+  - a manager can't be demoted while people still report to them
+- The second-level approver is recalculated automatically, and reports follow when their manager moves.
+- Every change is audited (`ORG_CHANGED`). Requests already in progress keep their approvers.
 
 ### System admin settings (no code change needed)
 - Long-leave threshold (default 3 days).

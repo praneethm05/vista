@@ -18,7 +18,7 @@ export function Logo({ light = false }: { light?: boolean }) {
 export const ROLE_LABEL = { EMPLOYEE: 'Employee', MANAGER: 'Manager', ADMIN: 'Admin · HOD', SYSADMIN: 'System admin' } as const;
 
 export function navLinks(role: string, hasTeam: boolean) {
-  if (role === 'SYSADMIN') return [{ to: '/dashboard', label: 'Dashboard' }, { to: '/settings', label: 'Settings' }, { to: '/people', label: 'People' }, { to: '/audit', label: 'Audit log' }];
+  if (role === 'SYSADMIN') return [{ to: '/dashboard', label: 'Dashboard' }, { to: '/org', label: 'Organisation' }, { to: '/settings', label: 'Settings' }, { to: '/audit', label: 'Audit log' }];
   if (role === 'ADMIN') return [{ to: '/dashboard', label: 'Dashboard' }, { to: '/approvals', label: 'Approvals' }, { to: '/people', label: 'People' }, { to: '/audit', label: 'Audit log' }];
   if (role === 'MANAGER') return [{ to: '/dashboard', label: 'Dashboard' }, { to: '/approvals', label: 'Approvals' }, { to: '/team', label: 'My team' }, { to: '/', label: 'My leave' }, { to: '/apply', label: 'Apply' }];
   if (!hasTeam) return [{ to: '/', label: 'Join a team' }];
