@@ -1,0 +1,55 @@
+Assignment:  Employee Leave Management System
+
+Problem Statement
+Create a simple portal where employees can submit leave requests and managers can approve or reject them.
+Employees should be able to:
+	•	Submit leave requests
+	•	View their submitted requests
+	•	Check request status
+Managers should be able to:
+	•	View all pending requests
+	•	Approve requests
+	•	Reject requests
+	•	Add comments while approving/rejecting
+
+Additional Validations:
+	•	Add strict check if number of consecutive leaves is more than 3.  The system should ask to add documents and follow multiple approval process. One approval from manager and the other one from the HOD.
+
+IMPORTANT
+OUTPUT: You should be able to give us an executable so that we can run it during our assessment. Add a README file with instructions to run the service/s.
+
+Features:
+Employee:
+	•	Apply for leave
+	•	View leave history
+	•	Ability to attach documents (if necessary)
+Manager:
+	•	Approve leave
+	•	Reject leave
+	•	Add comments
+	•	View Documents
+	•	Ask for more information to be provided
+
+Leave Fields
+JSON
+{
+"employeeName": "John",
+"fromDate": "2026-11-01",
+"toDate": "2026-11-05",
+"reason": "Vacation"
+}
+
+Skills Evaluated
+	•	Workflow implementation
+	•	Form validation
+	•	CRUD development
+	•	Usage of AI tools
+	•	Code and system knowledge
+
+Plus Points:
+	•	Audit logs to track important details.
+	•	Friendly Error messages
+	•	Color Coding on UI wherever necessary
+	•	Responsive web/mobile app
+
+

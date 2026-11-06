@@ -1,0 +1,49 @@
+/* app/globals.css: LOCKED design tokens (Tailwind v4). */
+@import "tailwindcss";
+
+@theme {
+  /* Fonts (CSS variables come from app/fonts.ts) */
+  --font-display: var(--font-display), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+
+  /* Colour: one accent, one brand ink, neutrals. Nothing else. */
+  --color-ink: #16121f;        /* text */
+  --color-muted: #6b6478;      /* secondary text */
+  --color-line: #e7e3ee;       /* borders */
+  --color-surface: #ffffff;    /* cards */
+  --color-canvas: #faf9fc;     /* page background */
+  --color-brand: #4b1f73;      /* primary buttons, links */
+  --color-accent: #ff6a2b;     /* ONE highlight: selected seat, key badge */
+  --color-success: #1f8a5b;
+  --color-danger: #c2412d;
+
+  /* Type scale (4 sizes + 2 small) */
+  --text-display: 3rem;        /* 48px hero heading */
+  --text-title: 1.875rem;      /* 30px section / route */
+  --text-subtitle: 1.25rem;    /* 20px subheading */
+  --text-body: 0.9375rem;      /* 15px */
+  --text-small: 0.8125rem;     /* 13px meta */
+  --text-tiny: 0.75rem;        /* 12px labels */
+
+  /* Radius + shadow */
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --shadow-card: 0 1px 2px rgb(22 18 31 / 0.04), 0 4px 16px rgb(22 18 31 / 0.04);
+}
+
+/* Base */
+html { background: var(--color-canvas); color: var(--color-ink); }
+body { font-family: var(--font-sans); font-size: var(--text-body); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+/* Display text: Big Shoulders at its Display optical size, uppercase-friendly */
+.font-display, h1, h2 { font-family: var(--font-display); font-variation-settings: "opsz" 72; font-weight: 800; letter-spacing: 0.01em; line-height: 1.02; }
+h1 { font-size: var(--text-display); text-transform: uppercase; }
+h2 { font-size: var(--text-title); }
+h3 { font-family: var(--font-sans); font-size: var(--text-subtitle); font-weight: 600; line-height: 1.3; }
+
+/* Data: codes, PNR, times always mono + tabular figures */
+.font-mono, code, .data { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+
+/* Money ALWAYS in Inter (Big Shoulders has no ₹) */
+.price { font-family: var(--font-sans); font-weight: 700; font-variant-numeric: tabular-nums; }
