@@ -1,4 +1,4 @@
-export type Role = 'EMPLOYEE' | 'MANAGER' | 'ADMIN';
+export type Role = 'EMPLOYEE' | 'MANAGER' | 'ADMIN' | 'SYSADMIN';
 export type Status = 'PENDING_MANAGER' | 'PENDING_HOD' | 'INFO_REQUESTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 export interface Balance { code: string; label: string; quota: number | null; used: number; pending: number; available: number | null }

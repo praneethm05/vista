@@ -36,6 +36,7 @@ npm run dev                   # API → http://localhost:4000 · Web → http://
 
 | Role | Email | Password |
 |---|---|---|
+| **System admin** (Dashboard for the whole org, **Settings**: long-leave threshold, take-back notice, quotas; People, Audit) | `sysadmin+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
 | Admin (acts as HOD: 2nd-level approver, People, Audit log) | `admin+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
 | Manager (approves their team, accepts join requests) | `manager+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
 | Employee (already in the manager's team) | `employee+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
@@ -54,9 +55,9 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 | Command | What it does |
 |---|---|
 | `npm run dev` | API (`tsx watch`) + web (Vite) together |
-| `npm test` | 19 tests: workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
+| `npm test` | 20 tests: workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
 | `npm run build` | Production build of the client |
-| `cd server && npm run simulate` | 20-person company, 90 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
+| `cd server && npm run simulate` | 20-person company, 93 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
 | `npm run seed` | Create or refresh the 3 demo accounts (Admin, Manager, Employee) |
 
 ---
@@ -72,6 +73,22 @@ The sign-in page asks for an **organisation email**; personal domains are accept
   - The history list has colour-coded statuses.
   - Each request has a progress stepper and a full activity timeline.
 - **Reply to "more info" requests** with a comment and extra documents, or **cancel** a request while it's still open.
+
+### Dashboards (manager: their team · admin and sysadmin: the whole organisation)
+- KPI tiles: headcount, **on leave today**, waiting for a decision, approved this month.
+- Bar chart of leave taken this year by type, plus a status breakdown bar.
+- **Out today** (with return date), **next 7 days**, and a status card for every person (Working / On leave).
+
+### Taking back leave
+- Employees can **take back approved leave** up to *N* days before it starts. *N* is set by the sysadmin; the default is 2.
+- The balance is restored automatically, the manager is emailed, and the audit log records `WITHDRAWN`.
+
+### System admin settings (no code change needed)
+- Long-leave threshold (default 3 days).
+- Take-back notice period.
+- Yearly quota per leave type.
+
+Saved policy is cached for 15 s, applies to new requests immediately, and every change is audited with before and after values.
 
 ### Manager / HOD
 - **Approvals queue:** only requests waiting on *you* (manager stage for your reports, HOD stage for your department). Each card shows a document count and a ⚠ flag when teammates are off on the same days.

@@ -28,7 +28,7 @@ var userSchema = new Schema(
     clerkId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     email: { type: String, required: true, lowercase: true, index: true },
-    role: { type: String, enum: ["EMPLOYEE", "MANAGER", "ADMIN"], default: "EMPLOYEE" },
+    role: { type: String, enum: ["EMPLOYEE", "MANAGER", "ADMIN", "SYSADMIN"], default: "EMPLOYEE" },
     employeeCode: { type: String, required: true, unique: true },
     department: { type: String, default: "Unassigned" },
     managerId: { type: String, default: null, index: true },
@@ -149,25 +149,31 @@ function getLeaveType(code) {
   return type;
 }
 var LONG_LEAVE_THRESHOLD_DAYS = 3;
-function isLongLeave(calendarDayCount) {
-  return calendarDayCount > LONG_LEAVE_THRESHOLD_DAYS;
+function isLongLeave(calendarDayCount, threshold = LONG_LEAVE_THRESHOLD_DAYS) {
+  return calendarDayCount > threshold;
 }
-function needsDocument(type, calendarDayCount) {
-  return type.documentAlways || isLongLeave(calendarDayCount);
+function needsDocument(type, calendarDayCount, threshold = LONG_LEAVE_THRESHOLD_DAYS) {
+  return type.documentAlways || isLongLeave(calendarDayCount, threshold);
 }
 
 // src/domain/workflow.ts
 var APPROVER_ACTIONS = ["APPROVE", "REJECT", "REQUEST_INFO"];
 var OPEN_STATUSES = ["PENDING_MANAGER", "PENDING_HOD", "INFO_REQUESTED"];
 var ACTIVE_STATUSES = [...OPEN_STATUSES, "APPROVED"];
-function transition(request, action, actor, comment) {
-  if (action === "CANCEL") return cancel(request, actor);
+function transition(request, action, actor, comment, cancelContext) {
+  if (action === "CANCEL") return cancel(request, actor, cancelContext);
   if (action === "RESPOND") return respond(request, actor);
   return decide(request, action, actor, comment);
 }
-function cancel(request, actor) {
+function cancel(request, actor, ctx) {
   if (actor.id !== request.employeeId) {
     throw new AppError("FORBIDDEN", 403, "Only the employee who applied can cancel this request.");
+  }
+  if (request.status === "APPROVED" && ctx) {
+    if (ctx.daysUntilStart < ctx.noticeDays) {
+      throw new AppError("TOO_LATE_TO_CANCEL", 409, `Approved leave can be taken back up to ${ctx.noticeDays} day${ctx.noticeDays === 1 ? "" : "s"} before it starts. Please talk to your manager.`);
+    }
+    return { status: "CANCELLED", stage: request.stage };
   }
   if (!OPEN_STATUSES.includes(request.status)) {
     throw new AppError("NOT_CANCELLABLE", 409, `This request is already ${label(request.status)} and can no longer be cancelled.`);
@@ -304,37 +310,27 @@ function addDays(date, days2) {
   return new Date(date.getTime() + days2 * DAY_MS);
 }
 
-// src/services/balanceService.ts
-async function getBalances(employeeId, year = (/* @__PURE__ */ new Date()).getUTCFullYear()) {
-  const start = new Date(Date.UTC(year, 0, 1));
-  const end = new Date(Date.UTC(year + 1, 0, 1));
-  const rows2 = await LeaveRequest.aggregate([
-    { $match: { employeeId, status: { $in: ACTIVE_STATUSES }, fromDate: { $gte: start, $lt: end } } },
-    {
-      $group: {
-        _id: { type: "$leaveType", approved: { $eq: ["$status", "APPROVED"] } },
-        days: { $sum: "$workingDays" }
-      }
-    }
-  ]);
-  return LEAVE_TYPES.map((type) => {
-    const used = rows2.find((r) => r._id.type === type.code && r._id.approved)?.days ?? 0;
-    const pending = rows2.find((r) => r._id.type === type.code && !r._id.approved)?.days ?? 0;
-    return {
-      code: type.code,
-      label: type.label,
-      quota: type.quota,
-      used,
-      pending,
-      available: type.quota === null ? null : type.quota - used - pending
-    };
-  });
-}
+// src/services/settingsService.ts
+import { z as z2 } from "zod";
+
+// src/models/Settings.ts
+import { Schema as Schema3, model as model3 } from "mongoose";
+var settingsSchema = new Schema3(
+  {
+    _id: { type: String, default: "org" },
+    longLeaveThresholdDays: { type: Number, default: 3 },
+    cancelNoticeDays: { type: Number, default: 2 },
+    quotas: { type: Map, of: Number, default: {} },
+    updatedBy: { type: String, default: "" }
+  },
+  { timestamps: true }
+);
+var Settings = model3("Settings", settingsSchema);
 
 // src/models/AuditLog.ts
-import { Schema as Schema3, model as model3 } from "mongoose";
-var auditLogSchema = new Schema3({
-  requestId: { type: Schema3.Types.ObjectId, ref: "LeaveRequest", index: true },
+import { Schema as Schema4, model as model4 } from "mongoose";
+var auditLogSchema = new Schema4({
+  requestId: { type: Schema4.Types.ObjectId, ref: "LeaveRequest", index: true },
   actorId: { type: String, required: true },
   actorName: { type: String, required: true },
   actorRole: { type: String, required: true },
@@ -342,11 +338,11 @@ var auditLogSchema = new Schema3({
   fromStatus: { type: String, default: null },
   toStatus: { type: String, default: null },
   comment: { type: String, default: "" },
-  meta: { type: Schema3.Types.Mixed, default: {} },
+  meta: { type: Schema4.Types.Mixed, default: {} },
   at: { type: Date, default: () => /* @__PURE__ */ new Date() }
 });
 auditLogSchema.index({ requestId: 1, at: 1 });
-var AuditLog = model3("AuditLog", auditLogSchema);
+var AuditLog = model4("AuditLog", auditLogSchema);
 
 // src/services/auditService.ts
 async function record(actor, entry) {
@@ -364,15 +360,75 @@ async function recent(limit = 100) {
   return AuditLog.find().sort({ at: -1 }).limit(limit).lean();
 }
 
+// src/services/settingsService.ts
+var CACHE_MS2 = 15e3;
+var cached = null;
+async function getPolicy() {
+  if (cached && cached.until > Date.now()) return cached.policy;
+  const doc = await Settings.findById("org").lean();
+  const saved = doc?.quotas ?? {};
+  const quotas = {};
+  for (const t of LEAVE_TYPES) quotas[t.code] = t.quota === null ? null : saved[t.code] ?? t.quota;
+  const policy = {
+    longLeaveThresholdDays: doc?.longLeaveThresholdDays ?? 3,
+    cancelNoticeDays: doc?.cancelNoticeDays ?? 2,
+    quotas
+  };
+  cached = { policy, until: Date.now() + CACHE_MS2 };
+  return policy;
+}
+var settingsSchema2 = z2.object({
+  longLeaveThresholdDays: z2.coerce.number().int().min(1, "At least 1 day.").max(30, "At most 30 days."),
+  cancelNoticeDays: z2.coerce.number().int().min(0, "Cannot be negative.").max(60, "At most 60 days."),
+  quotas: z2.record(z2.string(), z2.coerce.number().int().min(0, "Quota cannot be negative.").max(365, "At most 365 days.")).refine((q) => Object.keys(q).every((k) => LEAVE_TYPE_CODES.includes(k)), "Unknown leave type.").default({})
+});
+async function updatePolicy(user, input) {
+  const before = await getPolicy();
+  await Settings.updateOne({ _id: "org" }, { $set: { ...input, updatedBy: user.name } }, { upsert: true });
+  cached = null;
+  const after = await getPolicy();
+  await record(user, { action: "SETTINGS_UPDATED", meta: { before, after } });
+  return after;
+}
+
+// src/services/balanceService.ts
+async function getBalances(employeeId, year = (/* @__PURE__ */ new Date()).getUTCFullYear()) {
+  const start = new Date(Date.UTC(year, 0, 1));
+  const end = new Date(Date.UTC(year + 1, 0, 1));
+  const rows2 = await LeaveRequest.aggregate([
+    { $match: { employeeId, status: { $in: ACTIVE_STATUSES }, fromDate: { $gte: start, $lt: end } } },
+    {
+      $group: {
+        _id: { type: "$leaveType", approved: { $eq: ["$status", "APPROVED"] } },
+        days: { $sum: "$workingDays" }
+      }
+    }
+  ]);
+  const { quotas } = await getPolicy();
+  return LEAVE_TYPES.map((type) => {
+    const quota = quotas[type.code] ?? type.quota;
+    const used = rows2.find((r) => r._id.type === type.code && r._id.approved)?.days ?? 0;
+    const pending = rows2.find((r) => r._id.type === type.code && !r._id.approved)?.days ?? 0;
+    return {
+      code: type.code,
+      label: type.label,
+      quota,
+      used,
+      pending,
+      available: quota === null ? null : quota - used - pending
+    };
+  });
+}
+
 // src/services/documentService.ts
 import { Types as Types2 } from "mongoose";
 
 // src/models/Document.ts
-import { Schema as Schema4, model as model4 } from "mongoose";
-var documentSchema = new Schema4(
+import { Schema as Schema5, model as model5 } from "mongoose";
+var documentSchema = new Schema5(
   {
     ownerId: { type: String, required: true, index: true },
-    requestId: { type: Schema4.Types.ObjectId, ref: "LeaveRequest", default: null },
+    requestId: { type: Schema5.Types.ObjectId, ref: "LeaveRequest", default: null },
     filename: { type: String, required: true },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },
@@ -380,7 +436,7 @@ var documentSchema = new Schema4(
   },
   { timestamps: true }
 );
-var LeaveDocument = model4("Document", documentSchema);
+var LeaveDocument = model5("Document", documentSchema);
 
 // src/services/documentService.ts
 var ALLOWED_MIME = ["application/pdf", "image/png", "image/jpeg"];
@@ -426,9 +482,9 @@ async function listMeta(ids) {
 }
 
 // src/services/lockService.ts
-import { Schema as Schema5, model as model5 } from "mongoose";
-var lockSchema = new Schema5({ _id: String, expireAt: { type: Date, expires: 0 } });
-var Lock = model5("Lock", lockSchema);
+import { Schema as Schema6, model as model6 } from "mongoose";
+var lockSchema = new Schema6({ _id: String, expireAt: { type: Date, expires: 0 } });
+var Lock = model6("Lock", lockSchema);
 async function withLock(key, fn) {
   try {
     await Lock.create({ _id: key, expireAt: new Date(Date.now() + 1e4) });
@@ -642,6 +698,17 @@ async function joinDecided(employeeEmail, managerName, accepted, comment) {
     cta: { label: accepted ? "Apply for leave" : "Find your manager", url: appUrl(accepted ? "/apply" : "/") }
   });
 }
+async function leaveWithdrawn(r) {
+  await sendEmail(await emailOf(r.managerId), `${r.employeeName} took back approved leave`, {
+    preheader: `${range(r)} is no longer off`,
+    eyebrow: "Team update",
+    title: `${r.employeeName} will be working after all`,
+    intro: "They withdrew leave you had approved. Their balance has been restored automatically.",
+    status: { label: "Withdrawn", tone: "neutral" },
+    rows: rows(r),
+    cta: { label: "View request", url: appUrl(`/approvals/${r._id}`) }
+  });
+}
 
 // src/services/leaveService.ts
 function submit(user, input) {
@@ -653,6 +720,7 @@ async function submitUnlocked(user, input) {
   const to = parseDay(input.toDate);
   const days2 = calendarDays(from, to);
   const working = workingDays(from, to);
+  const policy = await getPolicy();
   if (!user.managerId || !user.hodId) {
     throw new AppError("NO_TEAM", 422, "Join a team first: once your manager accepts you, you can apply for leave.");
   }
@@ -666,8 +734,8 @@ async function submitUnlocked(user, input) {
   if (working === 0) {
     throw new AppError("NO_WORKING_DAYS", 422, "These dates fall on a weekend, so no leave is needed.");
   }
-  if (needsDocument(type, days2) && input.documentIds.length === 0) {
-    const why = type.documentAlways ? `${type.label} needs a supporting document.` : `Leave longer than ${LONG_LEAVE_THRESHOLD_DAYS} consecutive days needs a supporting document.`;
+  if (needsDocument(type, days2, policy.longLeaveThresholdDays) && input.documentIds.length === 0) {
+    const why = type.documentAlways ? `${type.label} needs a supporting document.` : `Leave longer than ${policy.longLeaveThresholdDays} consecutive days needs a supporting document.`;
     throw new AppError("DOCUMENT_REQUIRED", 422, why, { documentIds: "Required" });
   }
   await assertOwned(user, input.documentIds);
@@ -688,7 +756,7 @@ async function submitUnlocked(user, input) {
     reason: input.reason,
     documentIds: input.documentIds,
     // Second level only when it's a different person (e.g. a manager's own leave goes to the admin once).
-    requiresHod: isLongLeave(days2) && user.managerId !== user.hodId,
+    requiresHod: isLongLeave(days2, policy.longLeaveThresholdDays) && user.managerId !== user.hodId,
     status: "PENDING_MANAGER",
     stage: "MANAGER"
   });
@@ -751,9 +819,13 @@ async function applyTransition(request, next, extra = {}) {
 }
 async function cancel2(user, id) {
   const request = await getVisible(user, id);
-  const next = transition(request, "CANCEL", user);
+  const { cancelNoticeDays } = await getPolicy();
+  const daysUntilStart = Math.round((new Date(request.fromDate).getTime() - todayUtc().getTime()) / 864e5);
+  const next = transition(request, "CANCEL", user, void 0, { daysUntilStart, noticeDays: cancelNoticeDays });
   const updated = await applyTransition(request, next);
-  await record(user, { requestId: request._id, action: "CANCELLED", fromStatus: request.status, toStatus: next.status });
+  const wasApproved = request.status === "APPROVED";
+  await record(user, { requestId: request._id, action: wasApproved ? "WITHDRAWN" : "CANCELLED", fromStatus: request.status, toStatus: next.status });
+  if (wasApproved) await leaveWithdrawn(updated);
   return updated;
 }
 async function respond2(user, id, input) {
@@ -886,20 +958,25 @@ var metaRouter = Router4();
 metaRouter.get("/me", async (req, res) => {
   res.json({ ...req.user, balances: await getBalances(req.user.id) });
 });
-metaRouter.get("/leave-types", (_req, res) => {
-  res.json({ types: LEAVE_TYPES, longLeaveThresholdDays: LONG_LEAVE_THRESHOLD_DAYS });
+metaRouter.get("/leave-types", async (_req, res) => {
+  const policy = await getPolicy();
+  res.json({
+    types: LEAVE_TYPES.map((t) => ({ ...t, quota: policy.quotas[t.code] ?? t.quota })),
+    longLeaveThresholdDays: policy.longLeaveThresholdDays,
+    cancelNoticeDays: policy.cancelNoticeDays
+  });
 });
-metaRouter.get("/audit", requireRole("ADMIN"), async (_req, res) => {
+metaRouter.get("/audit", requireRole("ADMIN", "SYSADMIN"), async (_req, res) => {
   res.json(await recent());
 });
 
 // src/routes/team.ts
 import { Router as Router5 } from "express";
-import { z as z2 } from "zod";
+import { z as z3 } from "zod";
 
 // src/models/TeamRequest.ts
-import { Schema as Schema6, model as model6 } from "mongoose";
-var teamRequestSchema = new Schema6(
+import { Schema as Schema7, model as model7 } from "mongoose";
+var teamRequestSchema = new Schema7(
   {
     employeeId: { type: String, required: true, index: true },
     employeeName: { type: String, required: true },
@@ -913,7 +990,7 @@ var teamRequestSchema = new Schema6(
 );
 teamRequestSchema.index({ managerId: 1, status: 1 });
 teamRequestSchema.index({ employeeId: 1 }, { unique: true, partialFilterExpression: { status: "PENDING" } });
-var TeamRequest = model6("TeamRequest", teamRequestSchema);
+var TeamRequest = model7("TeamRequest", teamRequestSchema);
 
 // src/services/teamService.ts
 async function searchManagers(query = "") {
@@ -991,9 +1068,9 @@ teamRouter.get("/managers", async (req, res) => {
 teamRouter.get("/join-request", async (req, res) => {
   res.json(await myRequest(req.user));
 });
-var joinSchema = z2.object({
-  managerId: z2.string({ error: "Choose your manager." }).min(1, "Choose your manager."),
-  message: z2.string().trim().max(300, "Keep the note under 300 characters.").optional().default("")
+var joinSchema = z3.object({
+  managerId: z3.string({ error: "Choose your manager." }).min(1, "Choose your manager."),
+  message: z3.string().trim().max(300, "Keep the note under 300 characters.").optional().default("")
 });
 teamRouter.post("/join-request", async (req, res) => {
   const input = joinSchema.parse(req.body);
@@ -1002,16 +1079,82 @@ teamRouter.post("/join-request", async (req, res) => {
 teamRouter.get("/requests", requireRole("MANAGER"), async (req, res) => {
   res.json(await inbox(req.user));
 });
-var decisionSchema = z2.object({
-  decision: z2.enum(["ACCEPT", "REJECT"], { error: "Choose accept or reject." }),
-  comment: z2.string().trim().max(300).optional().default("")
+var decisionSchema = z3.object({
+  decision: z3.enum(["ACCEPT", "REJECT"], { error: "Choose accept or reject." }),
+  comment: z3.string().trim().max(300).optional().default("")
 });
 teamRouter.post("/requests/:id/decision", requireRole("MANAGER"), async (req, res) => {
   const input = decisionSchema.parse(req.body);
   res.json(await decide2(req.user, String(req.params.id), input.decision, input.comment));
 });
-teamRouter.get("/members", requireRole("MANAGER", "ADMIN"), async (req, res) => {
-  res.json(req.user.role === "ADMIN" ? await allUsers() : await myTeam(req.user));
+teamRouter.get("/members", requireRole("MANAGER", "ADMIN", "SYSADMIN"), async (req, res) => {
+  res.json(req.user.role !== "MANAGER" ? await allUsers() : await myTeam(req.user));
+});
+
+// src/routes/admin.ts
+import { Router as Router6 } from "express";
+
+// src/services/statsService.ts
+async function dashboard(user) {
+  const scope = user.role === "MANAGER" ? { managerId: user.id } : {};
+  const people = await User.find(user.role === "MANAGER" ? { managerId: user.id } : { role: { $in: ["EMPLOYEE", "MANAGER"] } }).select("clerkId name email role department").sort({ name: 1 }).lean();
+  const ids = people.map((p) => p.clerkId);
+  const today = todayUtc();
+  const in7 = addDays(today, 7);
+  const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const yearStart = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
+  const base = { ...scope, employeeId: { $in: ids } };
+  const [pending, approvedThisMonth, byType, byStatus, current, upcoming] = await Promise.all([
+    LeaveRequest.countDocuments({ ...base, status: { $in: ["PENDING_MANAGER", "PENDING_HOD", "INFO_REQUESTED"] } }),
+    LeaveRequest.countDocuments({ ...base, status: "APPROVED", fromDate: { $gte: monthStart } }),
+    LeaveRequest.aggregate([
+      { $match: { ...base, status: "APPROVED", fromDate: { $gte: yearStart } } },
+      { $group: { _id: "$leaveType", days: { $sum: "$workingDays" }, requests: { $sum: 1 } } }
+    ]),
+    LeaveRequest.aggregate([{ $match: { ...base, fromDate: { $gte: yearStart } } }, { $group: { _id: "$status", n: { $sum: 1 } } }]),
+    LeaveRequest.find({ ...base, status: "APPROVED", fromDate: { $lte: today }, toDate: { $gte: today } }).select("employeeId leaveType toDate").lean(),
+    LeaveRequest.find({ ...base, status: { $in: ["APPROVED", "PENDING_MANAGER", "PENDING_HOD"] }, fromDate: { $gt: today, $lte: in7 } }).select("employeeId employeeName leaveType fromDate toDate status").sort({ fromDate: 1 }).lean()
+  ]);
+  const onLeave = new Map(current.map((r) => [r.employeeId, r]));
+  const roster = people.map((p) => {
+    const away = onLeave.get(p.clerkId);
+    return {
+      id: p.clerkId,
+      name: p.name,
+      email: p.email,
+      role: p.role,
+      department: p.department,
+      status: away ? "ON_LEAVE" : "WORKING",
+      leaveType: away?.leaveType ?? null,
+      backOn: away ? addDays(new Date(away.toDate), 1).toISOString().slice(0, 10) : null
+    };
+  });
+  return {
+    scope: user.role === "MANAGER" ? "team" : "organisation",
+    headcount: people.length,
+    onLeaveToday: current.length,
+    pending,
+    approvedThisMonth,
+    byType: LEAVE_TYPES.map((t) => {
+      const row = byType.find((b) => b._id === t.code);
+      return { code: t.code, label: t.label, days: row?.days ?? 0, requests: row?.requests ?? 0 };
+    }),
+    byStatus: Object.fromEntries(byStatus.map((s) => [s._id, s.n])),
+    roster,
+    upcoming
+  };
+}
+
+// src/routes/admin.ts
+var adminRouter = Router6();
+adminRouter.get("/stats", requireRole("MANAGER", "ADMIN", "SYSADMIN"), async (req, res) => {
+  res.json(await dashboard(req.user));
+});
+adminRouter.get("/settings", async (_req, res) => {
+  res.json(await getPolicy());
+});
+adminRouter.put("/settings", requireRole("SYSADMIN"), async (req, res) => {
+  res.json(await updatePolicy(req.user, settingsSchema2.parse(req.body)));
 });
 
 // src/db.ts
@@ -1046,6 +1189,7 @@ function createApp(options = {}) {
   app.use("/api/approvals", approvalsRouter);
   app.use("/api/documents", documentsRouter);
   app.use("/api/team", teamRouter);
+  app.use("/api", adminRouter);
   app.use("/api", (_req, res) => {
     res.status(404).json({ error: { code: "NOT_FOUND", message: "That API route does not exist." } });
   });

@@ -14,6 +14,7 @@ export function RequestDetail() {
   const location = useLocation();
   const { me, reload: reloadMe } = useMe();
   const { data, error, loading, reload } = useQuery<Detail>(`/leaves/${id}`);
+  const policy = useQuery<{ cancelNoticeDays: number }>('/leave-types');
   const [reply, setReply] = useState('');
   const [replyDocs, setReplyDocs] = useState<DocMeta[]>([]);
   const [busy, setBusy] = useState(false);
@@ -25,6 +26,9 @@ export function RequestDetail() {
   const mine = r.employeeId === me.id;
   const open = ['PENDING_MANAGER', 'PENDING_HOD', 'INFO_REQUESTED'].includes(r.status);
   const typeLabel = me.balances.find((b) => b.code === r.leaveType)?.label ?? r.leaveType;
+  const notice = policy.data?.cancelNoticeDays ?? 2;
+  const daysUntilStart = Math.round((Date.parse(r.fromDate) - Date.parse(new Date().toISOString().slice(0, 10))) / 86_400_000);
+  const canTakeBack = mine && r.status === 'APPROVED' && daysUntilStart >= notice;
   const infoAsk = [...timeline].reverse().find((t) => t.action === 'INFO_REQUESTED');
 
   async function run(path: string, body?: object) {
@@ -82,6 +86,16 @@ export function RequestDetail() {
           )}
 
           {actionError && <Alert>{actionError}</Alert>}
+          {mine && r.status === 'APPROVED' && daysUntilStart >= 0 && (
+            canTakeBack ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-card border border-line p-4">
+                <p className="flex-1 text-small text-muted">Plans changed? You can take this leave back until {notice} day{notice === 1 ? '' : 's'} before it starts. Your balance is restored and your manager is told.</p>
+                <button className="btn-ghost" disabled={busy} onClick={() => confirm('Take back this approved leave? Your days return to your balance.') && run(`/leaves/${r._id}/cancel`)}>Take back leave</button>
+              </div>
+            ) : (
+              <p className="text-tiny text-muted">This leave starts in less than {notice} day{notice === 1 ? '' : 's'}, so it can no longer be taken back here. Please talk to your manager.</p>
+            )
+          )}
           {mine && open && (
             <button className="btn-danger" disabled={busy} onClick={() => confirm('Cancel this leave request?') && run(`/leaves/${r._id}/cancel`)}>
               Cancel request

@@ -43,12 +43,12 @@ export function SignInPage() {
             <summary className="cursor-pointer font-semibold text-brand">Evaluating Vista? Use a demo account</summary>
             <table className="mt-3 w-full text-left">
               <tbody className="data text-tiny">
-                {[['Admin · HOD', 'admin+clerk_test@vista-demo.com'], ['Manager', 'manager+clerk_test@vista-demo.com'], ['Employee', 'employee+clerk_test@vista-demo.com']].map(([role, email]) => (
+                {[['System admin', 'sysadmin+clerk_test@vista-demo.com'], ['Admin · HOD', 'admin+clerk_test@vista-demo.com'], ['Manager', 'manager+clerk_test@vista-demo.com'], ['Employee', 'employee+clerk_test@vista-demo.com']].map(([role, email]) => (
                   <tr key={email} className="border-t border-line"><td className="py-1.5 pr-3 font-sans font-semibold">{role}</td><td className="py-1.5">{email}</td></tr>
                 ))}
               </tbody>
             </table>
-            <p className="mt-2 text-tiny text-muted">Password for all three: <span className="data font-semibold text-ink">Vista#Leave-2026!</span>
+            <p className="mt-2 text-tiny text-muted">Password for all: <span className="data font-semibold text-ink">Vista#Leave-2026!</span>
               <span className="block">Asked for a verification code? Enter <span className="data font-semibold text-ink">424242</span>.</span>
               <span className="block">Demo addresses can't receive email, so notifications are only sent to real accounts.</span></p>
           </details>
