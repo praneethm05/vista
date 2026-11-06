@@ -59,6 +59,7 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 | `npm test` | 25 tests + 3 property-based tests (3,000 random cases): workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
 | `npm run build` | Production build of the client |
 | `cd server && npm run simulate` | 20-person company, 103 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
+| `npm --prefix server run seed:org` | Fill the database with a realistic company: 22 people in 4 departments, about 60 leave requests over 10 months, people on leave today, and queues waiting for the demo manager and admin. Re-runnable; real accounts are never touched; seeded colleagues never receive email |
 | `npm run seed` | Create or refresh the 3 demo accounts (Admin, Manager, Employee) |
 
 ---
