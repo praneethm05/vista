@@ -35,9 +35,11 @@ npm run dev                   # API → http://localhost:4000 · Web → http://
 
 | Role | Email | Password |
 |---|---|---|
-| Admin (acts as HOD: 2nd-level approver, People, Audit log) | `admin@vista-demo.com` | `Vista#Leave-2026!` |
-| Manager (approves their team, accepts join requests) | `manager@vista-demo.com` | `Vista#Leave-2026!` |
-| Employee (already in the manager's team) | `employee@vista-demo.com` | `Vista#Leave-2026!` |
+| Admin (acts as HOD: 2nd-level approver, People, Audit log) | `admin+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
+| Manager (approves their team, accepts join requests) | `manager+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
+| Employee (already in the manager's team) | `employee+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
+
+If Clerk asks for a verification code (new-device check), enter **`424242`**. These are Clerk test addresses (`+clerk_test`), so no email is sent.
 
 **Any new sign-up** becomes an **Employee without a team**:
 1. On the **Join your team** screen, find a manager by name or ID (e.g. `VST-0002`) and send a request.

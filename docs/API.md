@@ -26,7 +26,7 @@ The default Clerk token lives about **60 seconds**. For longer Postman sessions:
 1. Create a JWT template named `postman` in the Clerk dashboard (*Configure → Sessions → JWT templates*) and set its lifetime to 3600 s.
 2. Get a token with `await window.Clerk.session.getToken({ template: 'postman' })`.
 
-Use one token per demo account: `TOKEN_EMP` (employee@vista-demo.com), `TOKEN_MGR` (manager@), `TOKEN_HOD` (admin@, the second-level approver), and `TOKEN_NEW` for a fresh sign-up, to walk through the full approval flow.
+Use one token per demo account: `TOKEN_EMP` (employee+clerk_test@vista-demo.com), `TOKEN_MGR` (manager@), `TOKEN_HOD` (admin@, the second-level approver), and `TOKEN_NEW` for a fresh sign-up, to walk through the full approval flow.
 
 ### Response conventions
 - JSON everywhere. Dates are `YYYY-MM-DD` in requests and ISO strings in responses.

@@ -4,6 +4,7 @@
  *   Manager  → approves their team, accepts join requests
  *   Employee → already in the manager's team
  * Usage: npm run seed   (needs Password sign-in enabled in Clerk)
+ * Emails use Clerk's `+clerk_test` sub-address: in dev instances any verification code is 424242, no email is sent.
  */
 import mongoose from 'mongoose';
 import { createClerkClient } from '@clerk/express';
@@ -13,9 +14,9 @@ const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'Vista#Leave-2026!';
 
 const DEMO = [
-  { key: 'admin', firstName: 'Aditi', lastName: 'Rao', email: 'admin@vista-demo.com', role: 'ADMIN', code: 'VST-0001' },
-  { key: 'manager', firstName: 'Meera', lastName: 'Menon', email: 'manager@vista-demo.com', role: 'MANAGER', code: 'VST-0002' },
-  { key: 'employee', firstName: 'Arjun', lastName: 'Shetty', email: 'employee@vista-demo.com', role: 'EMPLOYEE', code: 'VST-0003' },
+  { key: 'admin', firstName: 'Aditi', lastName: 'Rao', email: 'admin+clerk_test@vista-demo.com', role: 'ADMIN', code: 'VST-0001' },
+  { key: 'manager', firstName: 'Meera', lastName: 'Menon', email: 'manager+clerk_test@vista-demo.com', role: 'MANAGER', code: 'VST-0002' },
+  { key: 'employee', firstName: 'Arjun', lastName: 'Shetty', email: 'employee+clerk_test@vista-demo.com', role: 'EMPLOYEE', code: 'VST-0003' },
 ] as const;
 
 async function ensureClerkUser(d: (typeof DEMO)[number]) {
@@ -35,6 +36,13 @@ async function ensureClerkUser(d: (typeof DEMO)[number]) {
 }
 
 await mongoose.connect(process.env.MONGODB_URI!, { dbName: 'vista' });
+
+// Remove the first-generation demo users (plain @vista-demo.com addresses could not receive codes).
+for (const old of ['admin@vista-demo.com', 'manager@vista-demo.com', 'employee@vista-demo.com']) {
+  const { data } = await clerk.users.getUserList({ emailAddress: [old] });
+  for (const u of data) await clerk.users.deleteUser(u.id);
+  await User.deleteMany({ email: old });
+}
 const ids: Record<string, string> = {};
 for (const d of DEMO) ids[d.key] = await ensureClerkUser(d);
 
