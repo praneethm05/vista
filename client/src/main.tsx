@@ -10,7 +10,14 @@ if (!key) throw new Error('VITE_CLERK_PUBLISHABLE_KEY missing: copy .env.example
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ClerkProvider publishableKey={key} afterSignOutUrl="/">
+    <ClerkProvider
+      publishableKey={key}
+      afterSignOutUrl="/"
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
+      signInForceRedirectUrl="/"
+      signUpForceRedirectUrl="/"
+    >
       <BrowserRouter>
         <App />
       </BrowserRouter>

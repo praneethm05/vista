@@ -38,7 +38,8 @@ export function SignInPage() {
               <span className="block text-tiny text-muted">Personal email domains are allowed during the pilot.</span>
             </p>
           </div>
-          <SignIn routing="hash" withSignUp appearance={clerkAppearance} />
+          {/* Explicit redirects: the Clerk instance defaults to its hosted page, which left the embedded form spinning after sign-up. */}
+          <SignIn routing="hash" withSignUp forceRedirectUrl="/" signUpForceRedirectUrl="/" fallbackRedirectUrl="/" signUpFallbackRedirectUrl="/" appearance={clerkAppearance} />
           <details className="mt-5 rounded-control border border-line bg-surface px-4 py-3 text-small">
             <summary className="flex cursor-pointer list-none items-center gap-2.5 font-semibold text-brand [&::-webkit-details-marker]:hidden">
               <span aria-hidden className="text-lg leading-none">👋</span>
