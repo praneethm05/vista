@@ -14,6 +14,7 @@ Every action is recorded in an append-only audit log.
 | **Live demo** | **https://vista.praneethm.dev** · if that domain is blocked on your network (e.g. campus Wi-Fi), use **https://vista-btyc.vercel.app**, the same deployment. Demo logins are below; verification code `424242`. |
 | **Stack** | React + Vite + TypeScript · Node + Express 5 + TypeScript · MongoDB Atlas (Mongoose) · Clerk auth (Google + email) · Tailwind CSS 4 · Vitest + Supertest |
 | **Repo layout** | `server/` REST API · `client/` React SPA · `docs/` problem statement, API reference, plan |
+| **Engineering review** | [`docs/REVIEW.md`](docs/REVIEW.md): requirement → code → test traceability, invariants (test-first fixes), STRIDE threat model, decision records |
 | **API reference** | [`docs/API.md`](docs/API.md): every endpoint with curl examples (paste them into Postman) |
 
 ---
@@ -55,7 +56,7 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 | Command | What it does |
 |---|---|
 | `npm run dev` | API (`tsx watch`) + web (Vite) together |
-| `npm test` | 20 tests: workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
+| `npm test` | 25 tests + 3 property-based tests (3,000 random cases): workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
 | `npm run build` | Production build of the client |
 | `cd server && npm run simulate` | 20-person company, 103 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
 | `npm run seed` | Create or refresh the 3 demo accounts (Admin, Manager, Employee) |
