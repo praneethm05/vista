@@ -26,8 +26,9 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 export function renderEmail(c: EmailContent): string {
   const font = "font-family:Inter,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  // Status as a quiet labelled line with a coloured rule, not a pill badge.
   const status = c.status
-    ? `<span style="display:inline-block;padding:6px 12px;border-radius:999px;background:${TONES[c.status.tone][0]};color:${TONES[c.status.tone][1]};font-size:12px;font-weight:700;letter-spacing:.02em">● ${esc(c.status.label)}</span>`
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:4px"><tr><td style="border-left:3px solid ${TONES[c.status.tone][1]};padding:1px 0 1px 12px"><div style="font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#8a8496">Status</div><div style="font-size:14px;font-weight:600;color:${TONES[c.status.tone][1]};margin-top:2px">${esc(c.status.label)}</div></td></tr></table>`
     : '';
   const rows = (c.rows ?? [])
     .map(([k, v]) => `<tr><td style="padding:10px 0;border-bottom:1px solid #efeaf6;color:#6b6478;font-size:13px;width:38%">${esc(k)}</td><td style="padding:10px 0;border-bottom:1px solid #efeaf6;color:#16121f;font-size:14px;font-weight:600">${esc(v)}</td></tr>`)
@@ -36,7 +37,7 @@ export function renderEmail(c: EmailContent): string {
     ? `<div style="margin:20px 0 0;padding:14px 16px;border-left:3px solid #ff6300;background:#fff7f1;border-radius:0 10px 10px 0"><div style="font-size:12px;color:#6b6478;margin-bottom:4px">${esc(c.quote.by)} wrote</div><div style="font-size:15px;color:#16121f;line-height:1.5">“${esc(c.quote.text)}”</div></div>`
     : '';
   const cta = c.cta
-    ? `<a href="${esc(c.cta.url)}" style="display:inline-block;margin-top:24px;padding:13px 22px;background:#5c0fd9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px">${esc(c.cta.label)} →</a>`
+    ? `<a href="${esc(c.cta.url)}" style="display:inline-block;margin-top:24px;padding:13px 22px;background:#5c0fd9;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14px">${esc(c.cta.label)}</a>`
     : '';
 
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.title)}</title></head>

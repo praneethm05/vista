@@ -9,7 +9,7 @@ const fmt = new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric',
 const range = (r: LeaveRequestDoc) => {
   const a = fmt.format(new Date(r.fromDate));
   const b = fmt.format(new Date(r.toDate));
-  return a === b ? a : `${a} → ${b}`;
+  return a === b ? a : `${a} – ${b}`;
 };
 const typeLabel = (r: LeaveRequestDoc) => getLeaveType(r.leaveType as LeaveTypeCode).label;
 const days = (r: LeaveRequestDoc) => `${r.workingDays} working day${r.workingDays === 1 ? '' : 's'}`;
@@ -18,7 +18,7 @@ const rows = (r: LeaveRequestDoc): [string, string][] => [
   ['Leave type', typeLabel(r)],
   ['Dates', range(r)],
   ['Duration', days(r)],
-  ['Approval', r.requiresHod ? 'Manager → Admin (HOD)' : 'Manager'],
+  ['Approval', r.requiresHod ? 'Manager, then Admin (HOD)' : 'Manager'],
 ];
 
 async function emailOf(clerkId: string | null | undefined) {
