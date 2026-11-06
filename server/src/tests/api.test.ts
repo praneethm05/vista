@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { createApp } from '../app.js';
+import { createApp } from '../createApp.js';
 import { User } from '../models/User.js';
 import { addDays, formatDay, todayUtc } from '../domain/dates.js';
 

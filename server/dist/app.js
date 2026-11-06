@@ -1,4 +1,4 @@
-// src/app.ts
+// src/createApp.ts
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -1026,7 +1026,7 @@ function connectDb(uri = process.env.MONGODB_URI) {
   return connection;
 }
 
-// src/app.ts
+// src/createApp.ts
 function createApp(options = {}) {
   const app = express();
   app.use(helmet());

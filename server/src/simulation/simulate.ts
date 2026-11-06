@@ -9,7 +9,7 @@ import { writeFileSync } from 'node:fs';
 import mongoose from 'mongoose';
 import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { createApp } from '../app.js';
+import { createApp } from '../createApp.js';
 import { User } from '../models/User.js';
 import { LeaveRequest } from '../models/LeaveRequest.js';
 import { AuditLog } from '../models/AuditLog.js';

@@ -148,7 +148,7 @@ GET  /api/audit?requestId=           → approvers / HOD
 ## Server file layout
 ```
 server/src/
-  index.ts  app.ts (createApp, for tests)
+  index.ts  createApp.ts (named so Vercel does not mistake it for the entry)
   config/env.ts (zod-validated env)
   auth/requireAuth.ts  auth/requireRole.ts  (Clerk getAuth + publicMetadata)
   domain/leaveTypes.ts  domain/workflow.ts  domain/dates.ts

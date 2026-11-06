@@ -1,7 +1,7 @@
 // Local development entry: `npm run dev` / `npm start`.
 import { loadEnv } from './config/env.js';
 import { connectDb } from './db.js';
-import { createApp } from './app.js';
+import { createApp } from './createApp.js';
 
 const env = loadEnv();
 await connectDb(env.MONGODB_URI);
