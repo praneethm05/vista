@@ -55,6 +55,7 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 | `npm run dev` | API (`tsx watch`) + web (Vite) together |
 | `npm test` | 19 tests: workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
 | `npm run build` | Production build of the client |
+| `cd server && npm run simulate` | 20-person company, 90 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
 | `npm run seed` | Create or refresh the 3 demo accounts (Admin, Manager, Employee) |
 
 ---
