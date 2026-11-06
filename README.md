@@ -207,7 +207,7 @@ npm test
 ## Deployment (Vercel)
 
 `server/` is set up as **one Vercel project**:
-- Express runs as a serverless function (`server/index.ts` exports the app).
+- Express runs as a serverless function (`server/index.js` exports the app, bundled from TypeScript by esbuild into `dist/app.js`).
 - The React build is served from the CDN (`server/public`).
 - `vercel.json` sends every non-API route to the SPA.
 

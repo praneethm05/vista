@@ -7,24 +7,26 @@
     "start": "tsx --env-file=../.env src/local.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "vercel-build": "npm --prefix ../client install --include=dev && cd ../client && npx vite build --outDir ../server/public --emptyOutDir",
+    "vercel-build": "npm run build:api && npm --prefix ../client install --include=dev && cd ../client && npx vite build --outDir ../server/public --emptyOutDir",
     "seed": "tsx --env-file=../.env src/scripts/seedDemo.ts",
-    "simulate": "tsx src/simulation/simulate.ts"
+    "simulate": "tsx src/simulation/simulate.ts",
+    "build:api": "esbuild src/vercelApp.ts --bundle --platform=node --format=esm --packages=external --target=node20 --outfile=dist/app.js"
   },
   "dependencies": {
     "@clerk/express": "^2.1.88",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.6",
     "cors": "^2.8.6",
+    "esbuild": "^0.28.2",
     "express": "^5.3.0",
     "helmet": "^8.3.0",
     "mongoose": "^9.12.0",
     "multer": "^2.5.0",
     "resend": "^6.37.0",
-    "zod": "^4.6.7",
-    "@types/node": "^26.6.6",
-    "@types/express": "^5.0.6",
-    "@types/multer": "^2.3.0",
-    "@types/cors": "^2.8.19",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/supertest": "^7.2.1",
