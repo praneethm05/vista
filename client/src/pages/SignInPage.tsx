@@ -40,7 +40,11 @@ export function SignInPage() {
           </div>
           <SignIn routing="hash" withSignUp appearance={clerkAppearance} />
           <details className="mt-5 rounded-control border border-line bg-surface px-4 py-3 text-small">
-            <summary className="cursor-pointer font-semibold text-brand">Evaluating Vista? Use a demo account</summary>
+            <summary className="flex cursor-pointer list-none items-center gap-2.5 font-semibold text-brand [&::-webkit-details-marker]:hidden">
+              <span aria-hidden className="text-lg leading-none">👋</span>
+              <span>Hey Recruiter, I've made logins for you</span>
+              <span className="ml-auto text-tiny font-medium text-muted">Show</span>
+            </summary>
             <table className="mt-3 w-full text-left">
               <tbody className="data text-tiny">
                 {[['System admin', 'sysadmin+clerk_test@vista-demo.com'], ['Admin · HOD', 'admin+clerk_test@vista-demo.com'], ['Manager', 'manager+clerk_test@vista-demo.com'], ['Employee', 'employee+clerk_test@vista-demo.com']].map(([role, email]) => (
