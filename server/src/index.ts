@@ -4,7 +4,7 @@ import { createApp } from './app.js';
 
 const env = loadEnv();
 
-await mongoose.connect(env.MONGODB_URI);
+await mongoose.connect(env.MONGODB_URI, { dbName: 'vista' });
 console.log('✓ Connected to MongoDB');
 
 createApp({ clientOrigin: env.CLIENT_ORIGIN }).listen(env.PORT, () => {
