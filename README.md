@@ -2,294 +2,227 @@
 
 > *"Hasta la vista, baby."* (Terminator 2): what everyone says on their way out on leave.
 
-Vista is an employee leave management portal:
+Vista is an employee leave management system:
 - **Employees** apply for leave and track every request.
-- **Managers and HODs** approve, reject or ask for more information.
-- **Leave longer than 3 consecutive days** needs a supporting document and two approvals: **Manager → HOD**.
+- **Managers and the HOD** approve, reject or ask for more information.
+- **Leave longer than 3 consecutive days** needs a supporting document and **two approvals (Manager → HOD)**.
+- **Every action** is recorded in an audit log, and **email notifications** go out at each step.
 
-Every action is recorded in an append-only audit log.
+## 🌐 Live
 
-| | |
+| | URL |
 |---|---|
-| **Live demo** | **https://vista.praneethm.dev** · if that domain is blocked on your network (e.g. campus Wi-Fi), use **https://vista-btyc.vercel.app**, the same deployment. Demo logins are below; verification code `424242`. |
-| **Stack** | React + Vite + TypeScript · Node + Express 5 + TypeScript · MongoDB Atlas (Mongoose) · Clerk auth (Google + email) · Tailwind CSS 4 · Vitest + Supertest |
-| **Repo layout** | `server/` REST API · `client/` React SPA · `docs/` problem statement, API reference, plan |
-| **Engineering review** | [`docs/REVIEW.md`](docs/REVIEW.md): requirement → code → test traceability, invariants (test-first fixes), STRIDE threat model, decision records |
-| **API reference** | [`docs/API.md`](docs/API.md): every endpoint with curl examples (paste them into Postman) |
+| **Custom domain** | **https://vista.praneethm.dev** |
+| **Campus fallback** (if a network filter, e.g. CHRIST Wi-Fi, blocks `praneethm.dev`) | **https://vista-btyc.vercel.app**, the same deployment |
+| **Recruiter walkthrough** | [`WALKTHROUGH.md`](WALKTHROUGH.md): a guided 10-minute tour of every feature |
 
----
+Hosted on **Vercel**: Express runs as a serverless function and the React app is served from the CDN. The data is in **MongoDB Atlas**.
 
-## Run it locally
+### 👋 Demo logins
 
-**Requirements:**
-- Node 20+ (tested on Node 26)
-- A MongoDB Atlas connection string
-- A Clerk application with **Google** and **Email** sign-in enabled
+The password for all of them is **`Vista#Leave-2026!`**. If Clerk asks for a verification code, enter **`424242`**.
 
-```bash
-git clone https://github.com/praneethm05/vista && cd vista
-cp .env.example .env          # fill in MONGODB_URI and the Clerk keys
-npm run setup                 # installs root, server and client
-npm run dev                   # API → http://localhost:4000 · Web → http://localhost:5173
-```
-
-**Demo accounts for evaluators** (created by `npm run seed`, safe to re-run):
-
-| Role | Email | Password |
+| Role | Email | What you can do |
 |---|---|---|
-| **System admin** (Dashboard for the whole org, **Settings**: long-leave threshold, take-back notice, quotas; People, Audit) | `sysadmin+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
-| Admin (acts as HOD: 2nd-level approver, People, Audit log) | `admin+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
-| Manager (approves their team, accepts join requests) | `manager+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
-| Employee (already in the manager's team) | `employee+clerk_test@vista-demo.com` | `Vista#Leave-2026!` |
+| **System admin** | `sysadmin+clerk_test@vista-demo.com` | Company-wide dashboard, **organisation** (teams, roles, add people), **leave policy settings**, audit log |
+| **Admin · HOD** | `admin+clerk_test@vista-demo.com` | Final approval for long leave, company-wide dashboard with **approver analytics**, people, audit log |
+| **Manager** | `manager+clerk_test@vista-demo.com` | Team approvals, team dashboard, join requests, own leave |
+| **Employee** | `employee+clerk_test@vista-demo.com` | Apply, track, reply to questions, take back leave |
 
-If Clerk asks for a verification code (new-device check), enter **`424242`**. These are Clerk test addresses (`+clerk_test`), so no email is sent.
+You can also **sign up with any email**. You'll get the new-joiner flow: profile, then join a team.
 
-**Any new sign-up** becomes an **Employee without a team**:
-1. On the **Join your team** screen, find a manager by name or ID (e.g. `VST-0002`) and send a request.
-2. The manager accepts or declines it under **My team**.
-3. Once accepted, the employee can apply for leave, and the Admin is automatically their second-level approver.
-
-The sign-in page asks for an **organisation email**; personal domains are accepted during the pilot.
-
-> Clerk setup: enable **Email + Password** (and optionally Google) under *User & Authentication*. The demo users are created through the Clerk Backend API.
-
-| Command | What it does |
-|---|---|
-| `npm run dev` | API (`tsx watch`) + web (Vite) together |
-| `npm test` | 29 tests + 3 property-based tests (3,000 random cases): workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
-| `npm run build` | Production build of the client |
-| `cd server && npm run simulate` | 20-person company, 103 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
-| `npm --prefix server run seed:org` | Fill the database with a realistic company: 22 people in 4 departments, about 60 leave requests over 10 months, people on leave today, and queues waiting for the demo manager and admin. Re-runnable; real accounts are never touched; seeded colleagues never receive email |
-| `npm run seed` | Create or refresh the 3 demo accounts (Admin, Manager, Employee) |
+The demo database holds a realistic company: **22 people in 4 departments, about 60 leave requests over 10 months**, people on leave today, and queues waiting for the demo manager and admin.
 
 ---
 
-## What it does
+## ✨ Features
 
 ### Employee
 - **Apply for leave:**
-  - 7 leave types (Earned, Sick, Casual, Wellness, Parental, Bereavement, Pet adoption), inspired by Meesho's people-first policies.
-  - While you fill the form you see the working-day count, your **balance after this request**, and the **approval route** (Manager, or Manager → HOD).
-- **Attach documents** (PDF/PNG/JPG, up to 4 MB). The upload box only appears when the rules need it (more than 3 days, or Wellness/Parental leave).
-- **Track status:**
-  - The history list has colour-coded statuses.
-  - Each request has a progress stepper and a full activity timeline.
-- **Reply to "more info" requests** with a comment and extra documents, or **cancel** a request while it's still open.
+  - 7 leave types: Earned, Sick, Casual, Wellness, Parental (gender-neutral), Bereavement, Pet adoption.
+  - **While you fill the form** you see the working-day count, weekends not counted, your **balance after this request**, and the **approval route**.
+  - **The form explains why it can't be submitted yet**: weekend-only dates, past dates, over balance, missing document.
+- **Documents** (PDF/PNG/JPG, up to 4 MB) are requested **only when the rules need them**: more than 3 days, or Wellness/Parental leave.
+- **Track** every request:
+  - colour-coded status
+  - a progress stepper (Applied → Manager → HOD → Decision)
+  - a full activity timeline with role tags
+- **Reply** to "more information" requests, with extra documents if needed.
+- **Cancel** a pending request, or **take back approved leave** up to *N* days before it starts (set by the sysadmin). The balance is restored automatically and the manager is emailed.
 
-### Dashboards (manager: their team · admin and sysadmin: the whole organisation)
-- KPI tiles: headcount, **on leave today**, waiting for a decision, approved this month.
-- Bar chart of leave taken this year by type, plus a status breakdown bar.
-- **Out today** (with return date), **next 7 days**, and a status card for every person (Working / On leave), each with a role tag.
-- **Approver activity (admin and sysadmin):**
-  - for each approver: approved, rejected and asked-for-info counts, approval rate, and **average response time**
-  - response time is calculated from the audit log, from the request (or the employee's reply) to the decision
-  - the most active approver is flagged
-- **Role tags** (Employee / Manager / Admin · HOD / System admin) next to names in timelines, the audit log, the dashboard, teams and the org tree.
-
-### Taking back leave
-- Employees can **take back approved leave** up to *N* days before it starts. *N* is set by the sysadmin; the default is 2.
-- The balance is restored automatically, the manager is emailed, and the audit log records `WITHDRAWN`.
-
-### Organisation (system admin)
-- A **full reporting tree**: Admin (HOD) → managers → employees, plus a "Not in a team yet" group.
-- Click anyone to change their **role** (employee, manager or admin), **who they report to** and their **department**.
-- **Guards:**
-  - managers report to an admin
-  - nobody reports to an employee or to themselves
-  - no reporting loops
-  - a manager can't be demoted while people still report to them
-- The second-level approver is recalculated automatically, and reports follow when their manager moves.
-- Every change is audited (`ORG_CHANGED`). Requests already in progress keep their approvers.
-
-### New joiners
-- **Pre-registered by the sysadmin** (Organisation → **+ Add person**: name, email, role, manager, department, job title):
-  - On their first sign-in with that email, they land **directly in their team** with their role.
-  - Real addresses get a "You've been added to Vista" email. Invites can be cancelled until they're used.
-- **Self sign-up** (not pre-registered):
-  1. **Profile:** full name, job title, mobile (validated Indian number, optional), work location.
-  2. **Join a team:** the manager accepts or declines.
-
-### System admin settings (no code change needed)
-- Long-leave threshold (default 3 days).
-- Take-back notice period.
-- Yearly quota per leave type.
-
-Saved policy is cached for 15 s, applies to new requests immediately, and every change is audited with before and after values.
-
-### Manager / HOD
-- **Approvals queue:** only requests waiting on *you* (manager stage for your reports, HOD stage for your department). Each card shows a document count and a ⚠ flag when teammates are off on the same days.
-- **Decision page:** **Approve**, **Reject** or **Ask for more info**; a comment is required for the last two.
+### Manager
+- **Approvals queue:** only the requests waiting on *you*. Each card shows the document count and a ⚠ flag when teammates are already off.
 - **"Before you decide" panel:**
   - the employee's balance after approval
   - which teammates are already off on those dates
   - the documents, opened securely
-- **HOD:** an audit log of every action in the system.
+- **Approve, Reject or Ask for more info.** A comment is required for the last two.
+- **My team:** accept or decline join requests and see the team members.
+- **Team dashboard:** who's out today, the next 7 days, leave by type, status breakdown.
 
-### Colour coding
+### Admin · HOD
+- **Final (second-level) approval** for leave longer than 3 days.
+- **Company-wide dashboard**, including **approver activity**: for each approver, approved, rejected and asked-info counts, approval rate and **average response time**.
+- **Audit log** of everything that happened.
 
-| Status | Colour | Status | Colour |
-|---|---|---|---|
-| With manager | amber | Approved | green |
-| With HOD | violet | Rejected | red |
-| Info needed | blue | Cancelled | grey |
+### System admin
+- **Organisation:** a searchable **team-card view** of the whole company.
+  - Click anyone to change their **role**, **manager** or **department**.
+  - **Guards:** no reporting loops, nobody reports to an employee, and a manager can't be demoted while they still have reports.
+  - Pending requests **follow** someone when they change manager.
+- **+ Add person:** pre-register a new joiner. On their first sign-in with that email, they land directly in their team, and real addresses get a welcome email.
+- **Leave policy settings, no code change needed:**
+  - long-leave threshold (default 3 days)
+  - take-back notice period
+  - yearly quota per leave type
+  - Every change is audited with before and after values.
+
+### New joiners (self sign-up)
+1. **Profile:** full name, job title, mobile (a validated Indian number, optional), work location.
+2. **Join a team:** search for a manager by name or ID, add a note, and send the request. The manager accepts or declines.
+
+### Everywhere
+- **Role tags** (Employee / Manager / Admin · HOD / System admin) next to every name.
+- **Friendly errors:** every error has the shape `{ error: { code, message, fields } }`, with messages shown under the relevant field.
+- **Responsive:** mobile-first layout with a bottom navigation bar on phones.
+- **Colour coding:**
+  - amber: with manager
+  - violet: with HOD
+  - blue: info needed
+  - green: approved
+  - red: rejected
+  - grey: cancelled
 
 ---
 
-## Email notifications (Resend)
+## ✉️ Email notifications (Resend), working
 
-| Event | Who gets an email |
+Emails are sent through **Resend** from **`vista@praneethm.dev`**, a verified custom domain, using a branded HTML template that renders in Gmail and Outlook.
+
+| Event | Recipient |
 |---|---|
-| Leave submitted | Manager ("needs your decision") |
-| Manager approves long leave | Employee ("one step left") + Admin/HOD ("final approval") |
+| Leave submitted | Manager |
+| Manager approves long leave | Employee ("one step left") **and** Admin/HOD ("final approval") |
 | Approved / rejected / more info needed | Employee, with the approver's comment |
 | Employee replies with more info | The approver who asked |
-| Join-team request / accepted / declined | Manager / employee |
+| Approved leave taken back | Manager |
+| Join request / accepted / declined | Manager / employee |
+| Pre-registered by the sysadmin | The new joiner ("Welcome to Vista") |
 
-- **Design:** a branded HTML template (`server/src/mail/template.ts`): violet header, status pill, details table, quoted comment, one call-to-action button. It uses tables and inline styles so it renders in Gmail and Outlook.
-- **Demo accounts don't receive email:** `+clerk_test@` and `@vista-demo.com` addresses can't receive mail, so they are skipped and logged. **Real addresses (any new sign-up) get real email.**
-- **Email never blocks the workflow:** a sending failure is logged, and the approval still succeeds.
-- **Setup:** set `RESEND_API_KEY`, `EMAIL_FROM` (a verified Resend domain) and `APP_URL` (used for links). With no key set, email is skipped.
-
-## Architecture
-
-```
- React SPA (Vite)                         Express API (TypeScript)                     MongoDB Atlas
- ───────────────                          ───────────────────────────────────────      ─────────────
- Clerk <SignIn/>  ── Bearer session JWT ─► clerkMiddleware → requireAuth             ┌─ leaverequests
- pages/ (role-based)                      (role + reporting line from Clerk           ├─ auditlogs (append-only)
- lib/api.ts (fetch + friendly errors)      publicMetadata, cached 30 s)               └─ documents
-                                          routes/   → parse input with Zod
-                                          services/ → business rules, Mongo queries
-                                          domain/   → pure workflow state machine,
-                                                      leave policy table, date maths
-                                          errorHandler → { error: { code, message, fields } }
-```
-
-**Layers:**
-- **routes** only parse and respond.
-- **services** hold the business logic.
-- **domain** is pure: no database or HTTP, so it's unit-testable.
-
-### Approval workflow (state machine: `server/src/domain/workflow.ts`)
-```
-PENDING_MANAGER ─approve─► APPROVED                                   (≤ 3 consecutive days)
-PENDING_MANAGER ─approve─► PENDING_HOD ─approve─► APPROVED            (> 3 days: Manager + HOD)
-PENDING_*  ─reject (comment required)─► REJECTED
-PENDING_*  ─ask for info (comment required)─► INFO_REQUESTED ─employee replies─► back to the same stage
-PENDING_* / INFO_REQUESTED ─employee cancels─► CANCELLED
-```
-**Guards:**
-- Only the approver for the **current stage** can act.
-- Nobody can approve their own leave.
-- Decided requests are final.
-
-### Data model
-| Collection | Key fields |
-|---|---|
-| `leaverequests` | employeeId, **employeeName**, managerId, hodId, leaveType, **fromDate**, **toDate**, **reason**, calendarDays, workingDays, documentIds, requiresHod, status, stage, lastComment, **version** |
-| `users` | clerkId, name, email, role (EMPLOYEE/MANAGER/ADMIN), employeeCode, department, managerId, hodId |
-| `teamrequests` | employeeId, employeeName, managerId, message, status (PENDING/ACCEPTED/REJECTED/WITHDRAWN). A partial unique index allows one pending request per employee |
-| `auditlogs` | requestId, actorId, actorName, actorRole, action, fromStatus, toStatus, comment, at |
-| `documents` | ownerId, requestId, filename, mimeType, size, data (binary) |
-
-**Indexes:**
-- `{employeeId, fromDate}`: history and overlap checks
-- `{managerId, status}` and `{hodId, status}`: approver queues
-- `{requestId, at}`: timelines
+- **Demo and seeded accounts** (`+clerk_test@` and `@vista-demo.com`) can't receive mail, so they are **skipped and logged**. **Real accounts receive real email.**
+- **Email never blocks the workflow:** a failure is logged and the action still succeeds.
 
 ---
 
-## Key decisions & trade-offs
+## 🧱 Tech stack
 
-| Decision | Why |
+| Layer | Technology |
 |---|---|
-| **Workflow as a pure state machine** | One place decides what can happen next. Unit-tested without a database, and easy to extend (e.g. a third approval level). |
-| **Optimistic locking** (`version` field) | Two approvers clicking at the same time: the update only succeeds if the request is still in the state and version we read, so exactly one wins and the other gets **409**. Covered by a test. |
-| **Balances calculated from requests, not stored** | Balances come from approved and pending requests, so they can never drift out of sync. Re-checked at final approval, because the balance may have changed since submission. |
-| **Leave policy as data** (`domain/leaveTypes.ts`) | Adding a leave type means adding a row, with no code changes (Open/Closed). |
-| **Clerk for identity, MongoDB `users` for roles and teams** | Roles only change server-side (seed, or a manager accepting a join request), so users can't promote themselves. New sign-ups default to Employee with no team. Approvers are copied onto the request at submit, so a later team change doesn't silently reroute requests already in progress. |
-| **404 instead of 403** for other people's requests and documents | Doesn't reveal that the item exists (protects against IDOR, where someone changes an ID in the URL). |
-| **"> 3 consecutive days"** = calendar days `toDate − fromDate + 1` | Matches the wording of the brief. **Balances deduct working days** (Mon–Fri). Public holidays are out of scope. |
-| **Documents stored in MongoDB** (≤ 4 MB) | Zero extra infrastructure and works on serverless. At scale: S3/Blob with pre-signed uploads, keeping only the file details in Mongo. |
-| **Friendly errors everywhere** | One error shape, `{ error: { code, message, fields } }`. Zod validation maps to per-field messages that the form shows inline. |
-
-### Security
-- Every API route needs a valid Clerk session.
-- Role checks on the server; data access checks on every read.
-- Zod validation on all input.
-- Upload type and size limits; `helmet` headers; JSON body limit.
-- Secrets live only in `.env`, which is git-ignored.
+| Frontend | **React 19**, **Vite 8**, **TypeScript**, **Tailwind CSS 4**, React Router 7 |
+| Design | Akasa-inspired palette (violet `#5c0fd9`, sunrise orange `#ff6300`) · **Big Shoulders** (headings), **Inter** (body), **Geist Mono** (dates, IDs) · DiceBear "notionists" avatars |
+| Backend | **Node.js**, **Express 5**, **TypeScript**, **Zod** validation, Multer (uploads), Helmet |
+| Database | **MongoDB Atlas** + **Mongoose** |
+| Auth | **Clerk** (Google + email/password). Identity comes from Clerk; roles and teams are stored in MongoDB |
+| Email | **Resend** (custom domain `praneethm.dev`) |
+| Hosting | **Vercel** (Express as a serverless function, bundled with **esbuild**; React on the CDN) · custom domain **vista.praneethm.dev** |
+| Testing | **Vitest**, **Supertest**, **mongodb-memory-server**, **fast-check** (property-based tests), a 20-person corporate simulation |
 
 ---
 
-## Testing
+## 🚀 Run it locally
+
+**Requirements:**
+- Node 20+
+- A MongoDB Atlas connection string
+- A Clerk application (enable **Email + Password**; Google is optional)
+- Optional: a Resend API key
 
 ```bash
-npm test
+git clone https://github.com/praneethm05/vista && cd vista
+cp .env.example .env          # fill MONGODB_URI, Clerk keys (and RESEND_API_KEY / EMAIL_FROM / APP_URL for email)
+npm run setup                 # installs root, server and client
+npm run seed                  # creates the 4 demo logins (Clerk + MongoDB)
+npm --prefix server run seed:org   # optional: realistic company with leave history
+npm run dev                   # API → http://localhost:4000 · Web → http://localhost:5173
 ```
-- **Workflow unit tests:**
-  - Manager → HOD path
-  - only the current approver can act
-  - no self-approval
-  - comment required
-  - info request returns to the same stage
-  - decided requests are final
-- **Date maths:** inclusive day counts and weekends.
-- **API integration** (Supertest + in-memory MongoDB):
-  - validation errors
-  - `DOCUMENT_REQUIRED`
-  - full long-leave flow with audit trail
-  - `OVERLAP` 409
-  - **concurrent decisions → one 200, one 409**
-  - 404 for other people's data
-  - 403 for employees on approver routes
-  - balance limit
-  - join-team request: blocked until accepted, manager accepts once, a second click gets 409
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Runs the API and the web app together |
+| `npm test` | **29 tests**: workflow, API, invariants, plus **property-based tests over 3,000 random cases** |
+| `npm --prefix server run simulate` | A 20-person company running **103 scenarios** (everyday use, edge cases, races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
+| `npm run seed` / `npm --prefix server run seed:org` | Demo logins / realistic company data. Both can be re-run; real accounts are never touched |
 
 ---
 
-## Deployment (Vercel)
+## 🏗 Architecture
 
-`server/` is set up as **one Vercel project**:
-- Express runs as a serverless function (`server/index.js` exports the app, bundled from TypeScript by esbuild into `dist/app.js`).
-- The React build is served from the CDN (`server/public`).
-- `vercel.json` sends every non-API route to the SPA.
+```
+ React SPA (Vite)                    Express API (TypeScript)                         MongoDB Atlas
+ ───────────────                     ─────────────────────────────────────────        ──────────────
+ Clerk <SignIn/> ─ Bearer JWT ─────► clerkMiddleware → requireAuth                     users · teamrequests
+ pages/ by role                      (identity: Clerk · role/team: users collection)   invites · settings
+ lib/api.ts (friendly errors)        routes/    → parse input with Zod                 leaverequests
+                                     services/  → business rules, queries, locks       auditlogs (append-only)
+                                     domain/    → pure state machine, policy, dates    documents
+                                     mail/      → Resend notifications                 locks (TTL)
+                                     errorHandler → { error: { code, message, fields } }
+```
 
-**Steps:**
-1. Import the repo and set **Root Directory = `server`**.
-2. Add the four env vars from `.env.example`.
-3. Atlas Network Access must allow `0.0.0.0/0`, because Vercel's IPs change.
+### Approval workflow (`server/src/domain/workflow.ts`, a pure state machine)
+```
+PENDING_MANAGER ─approve─► APPROVED                                  (≤ threshold days)
+PENDING_MANAGER ─approve─► PENDING_HOD ─approve─► APPROVED           (> threshold: Manager + HOD)
+PENDING_*  ─reject (comment)─► REJECTED
+PENDING_*  ─ask for info (comment)─► INFO_REQUESTED ─employee replies─► same stage
+PENDING_* / INFO_REQUESTED ─employee cancels─► CANCELLED
+APPROVED ─employee takes back (≥ N days before start)─► CANCELLED
+```
 
-**Serverless notes:**
-- The Mongo connection is cached across warm calls (`src/db.ts`).
-- Uploads are capped at 4 MB because Vercel limits request bodies to 4.5 MB.
+### Key decisions
+| Decision | Why |
+|---|---|
+| Workflow as a pure state machine | One place decides what can happen next. Unit- and property-tested without a database |
+| **Optimistic locking** (`version`) + a per-employee **MongoDB lock** | Two approvers at the same moment → exactly one wins (409). A triple-clicked Submit creates one request |
+| Balances **calculated from requests**, not stored | Can't drift. Pending days are reserved at submit, and the balance is re-checked at final approval |
+| Leave policy as data + sysadmin settings | Change the rules without deploying code (Open/Closed) |
+| **404, not 403**, for other people's data | Doesn't reveal that something exists (protects against IDOR) |
+| Clerk for identity, MongoDB for roles | Nobody can promote themselves. Roles change only through the sysadmin or an accepted join request |
+| "Today" = **India time**, not UTC | 01:30 IST is already the next day. Configurable with `ORG_TIME_ZONE` |
+| Uploads checked by their **first bytes** | The browser's file type is only a claim |
+| Every document **view** is audited | Medical documents are sensitive personal data (India's DPDP Act) |
+
+Full engineering review: [`docs/REVIEW.md`](docs/REVIEW.md) covers the requirements traceability matrix, the invariants fixed test-first, a STRIDE threat model, decision records, and what's still open.
 
 ---
 
-## What I'd do next
-- **Notifications:** email or Slack when a request needs you or gets decided (Resend + a queue).
-- **Team calendar** view, **half-day** leave, **public holiday** calendar per location.
+## 📚 Docs
+- [`WALKTHROUGH.md`](WALKTHROUGH.md): a guided tour for recruiters
+- [`docs/API.md`](docs/API.md): every endpoint with curl examples (paste them into Postman)
+- [`docs/SIMULATION.md`](docs/SIMULATION.md): the 20-person corporate simulation report
+- [`docs/REVIEW.md`](docs/REVIEW.md): senior engineering review
+- [`docs/PLAN.md`](docs/PLAN.md): the original plan · [`docs/problem-statement.docx`](docs/problem-statement.docx): the brief
+
+## 🔭 What I'd do next
+- **Transactions:** a Mongo transaction for status + audit, and an email outbox with retries.
+- **Leave calendar:** public holidays per location, half days, accrual and carry-forward, leave that crosses the year end split by year.
 - **Delegation:** an approver on leave hands their queue to a deputy.
-- **Transactions:** wrap the status update and audit insert in one Mongo transaction.
-- **Scale:**
-  - pre-signed S3 uploads
-  - cache balances
-  - pagination on the queue
-  - rate limiting
-  - move the audit log to a write-once store
-- **Org email enforcement:** turn on Clerk's allowed email domains, or sync from the HR system / SSO.
-- **Admin UI** to promote employees to managers.
+- **Testing:** Playwright end-to-end with `@clerk/testing`, axe accessibility checks, Stryker mutation testing, an OWASP ZAP scan in CI.
+- **Scale:** pre-signed S3 uploads, pagination, rate limiting, a tamper-evident (hash-chained) audit log.
 
-## How AI was used
-I used Claude Code as a pair programmer, while I owned the design and the decisions:
-1. **Spec first:** I read the brief, decided the scope, stack and design language, and wrote the plan ([`docs/PLAN.md`](docs/PLAN.md)) before any code.
-2. **Small steps:**
-   - domain (state machine, policy, dates) → models → services → routes → tests → UI
-   - after each step I reviewed the diff and ran `tsc` and the tests
-3. **Review:** I checked every rule against the brief: Manager + HOD for more than 3 days, documents, ask-for-info, and audit.
-4. **I changed and decided:**
-   - Clerk instead of hand-rolled auth
-   - Akasa-inspired palette and type
-   - Meesho-style leave types
-   - Vercel-compatible upload limits
-   - the repo name
+## 🤖 How AI was used
+I used Claude Code as a pair programmer, while I owned the scope, the design and every decision.
+
+**Process:**
+1. **Spec first:** I wrote [`docs/PLAN.md`](docs/PLAN.md) before any code.
+2. **Small steps,** in this order: domain → models → services → routes → tests → UI.
+3. **I reviewed every diff** and ran the type-checks and tests after each step.
+4. **I verified** with a simulation, property tests and the live deployment's logs.
+
+**My decisions included:**
+- Clerk plus database roles
+- Akasa-inspired design
+- Meesho-style leave types
+- the take-back rule
+- sysadmin policy and organisation tools
+- Vercel deployment fixes based on runtime logs
