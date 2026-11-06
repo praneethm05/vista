@@ -91,6 +91,21 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 
 ---
 
+## Email notifications (Resend)
+
+| Event | Who gets an email |
+|---|---|
+| Leave submitted | Manager ("needs your decision") |
+| Manager approves long leave | Employee ("one step left") + Admin/HOD ("final approval") |
+| Approved / rejected / more info needed | Employee, with the approver's comment |
+| Employee replies with more info | The approver who asked |
+| Join-team request / accepted / declined | Manager / employee |
+
+- **Design:** a branded HTML template (`server/src/mail/template.ts`): violet header, status pill, details table, quoted comment, one call-to-action button. It uses tables and inline styles so it renders in Gmail and Outlook.
+- **Demo accounts don't receive email:** `+clerk_test@` and `@vista-demo.com` addresses can't receive mail, so they are skipped and logged. **Real addresses (any new sign-up) get real email.**
+- **Email never blocks the workflow:** a sending failure is logged, and the approval still succeeds.
+- **Setup:** set `RESEND_API_KEY`, `EMAIL_FROM` (a verified Resend domain) and `APP_URL` (used for links). With no key set, email is skipped.
+
 ## Architecture
 
 ```

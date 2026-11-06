@@ -49,7 +49,8 @@ export function SignInPage() {
               </tbody>
             </table>
             <p className="mt-2 text-tiny text-muted">Password for all three: <span className="data font-semibold text-ink">Vista#Leave-2026!</span>
-              <span className="block">Asked for a verification code? Enter <span className="data font-semibold text-ink">424242</span>.</span></p>
+              <span className="block">Asked for a verification code? Enter <span className="data font-semibold text-ink">424242</span>.</span>
+              <span className="block">Demo addresses can't receive email, so notifications are only sent to real accounts.</span></p>
           </details>
         </div>
       </section>
