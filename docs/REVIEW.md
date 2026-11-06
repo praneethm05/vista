@@ -27,7 +27,7 @@ Every line of the brief is mapped to the code, the test that proves it, and a de
 | 6 | Manager: approve | `approvalService.act` + `domain/workflow.ts` | `workflow.test.ts` · properties (2,000 random sequences) | Approve |
 | 7 | Manager: reject | same | `workflow.test.ts` "reject needs comment" | Reject with comment |
 | 8 | Manager: add comments while approving or rejecting | `actionSchema.comment` · `lastComment` | `workflow.test.ts` COMMENT_REQUIRED | Comment box |
-| 9 | Manager: view documents | `documentService.download` (approver only) | `api.test.ts` manager 200 · other employee 404 | Click 📎 document |
+| 9 | Manager: view documents | `documentService.download` (approver only) | `api.test.ts` manager 200 · other employee 404 | Open the attached document |
 | 10 | Manager: ask for more information | `REQUEST_INFO` → `INFO_REQUESTED` → `respond` | `workflow.test.ts` · `api.test.ts` round trip | Ask for info → employee replies |
 | 11 | **More than 3 consecutive days → documents + Manager AND HOD approval** | `needsDocument`, `requiresHod`, `PENDING_HOD` stage | `api.test.ts` DOCUMENT_REQUIRED + full HOD flow · properties: "approved long leave always passed both approvers" | Apply Mon–Fri → manager → admin |
 | 12 | Leave fields `employeeName`, `fromDate`, `toDate`, `reason` | `models/LeaveRequest.ts` (same names) | `api.test.ts` | Network tab / API.md |
@@ -49,12 +49,12 @@ Every line of the brief is mapped to the code, the test that proves it, and a de
 
 | Invariant | Failing test (before) | Fix | Status |
 |---|---|---|---|
-| An uploaded file must really be PDF/PNG/JPG | An `.exe` sent as `application/pdf` → 201 | `sniffType()` checks the file's first bytes; mismatch → 415 | ✅ fixed |
-| "Today" means the organisation's date (IST), not UTC | 01:30 IST on 7 Nov computed as 6 Nov | `orgToday()` uses `Intl` with `Asia/Kolkata` (configurable via `ORG_TIME_ZONE`) | ✅ fixed |
-| Every view of a medical document is recorded (DPDP Act) | No audit entry on download | `DOCUMENT_VIEWED` audit on every read | ✅ fixed |
-| No orphaned approvals when someone changes manager | The pending request stayed with the old manager | Requests at the manager stage move with the employee (`orgService`) | ✅ fixed |
-| Concurrent approvals never exceed a balance | Test passed **even without a fix**: pending days are reserved at submit, so each approval sees the other | Kept a per-employee approval lock as an extra safeguard | ✅ held by design |
-| Status change, audit entry and email happen together | Not reproduced as a test (needs failure injection) | **Not fixed:** see decision record 3 | ⚠️ documented |
+| An uploaded file must really be PDF/PNG/JPG | An `.exe` sent as `application/pdf` → 201 | `sniffType()` checks the file's first bytes; mismatch → 415 | Fixed |
+| "Today" means the organisation's date (IST), not UTC | 01:30 IST on 7 Nov computed as 6 Nov | `orgToday()` uses `Intl` with `Asia/Kolkata` (configurable via `ORG_TIME_ZONE`) | Fixed |
+| Every view of a medical document is recorded (DPDP Act) | No audit entry on download | `DOCUMENT_VIEWED` audit on every read | Fixed |
+| No orphaned approvals when someone changes manager | The pending request stayed with the old manager | Requests at the manager stage move with the employee (`orgService`) | Fixed |
+| Concurrent approvals never exceed a balance | Test passed **even without a fix**: pending days are reserved at submit, so each approval sees the other | Kept a per-employee approval lock as an extra safeguard | Held by design |
+| Status change, audit entry and email happen together | Not reproduced as a test (needs failure injection) | **Not fixed:** see decision record 3 | Documented (open) |
 
 **Found earlier by the 20-person simulation (`docs/SIMULATION.md`):**
 - balance checked against the wrong year

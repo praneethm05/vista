@@ -8,7 +8,7 @@ Every endpoint the server exposes, with ready-to-run `curl` commands, example re
 
 ```bash
 export BASE=http://localhost:4000/api
-export TOKEN=<clerk-session-token>     # see "Getting a token" below
+export TOKEN=<clerk-session-token> # see "Getting a token" below
 export AUTH="Authorization: Bearer $TOKEN"
 ```
 
@@ -200,7 +200,7 @@ curl -s -X POST $BASE/leaves -H "$AUTH" -H "Content-Type: application/json" \
 
 ```bash
 curl -s "$BASE/leaves/mine" -H "$AUTH"
-curl -s "$BASE/leaves/mine?status=PENDING_MANAGER,PENDING_HOD,INFO_REQUESTED" -H "$AUTH"   # filter (comma-separated)
+curl -s "$BASE/leaves/mine?status=PENDING_MANAGER,PENDING_HOD,INFO_REQUESTED" -H "$AUTH" # filter (comma-separated)
 curl -s "$BASE/leaves/mine?status=APPROVED" -H "$AUTH"
 ```
 - **Returns:** an array of requests, newest first.
@@ -249,8 +249,8 @@ curl -s -X POST $BASE/leaves/$LEAVE_ID/respond -H "$AUTH" -H "Content-Type: appl
 ## 11. Approval queue (manager / HOD)
 
 ```bash
-curl -s $BASE/approvals -H "Authorization: Bearer $TOKEN_MGR"              # waiting on me
-curl -s "$BASE/approvals?scope=all" -H "Authorization: Bearer $TOKEN_MGR"  # everything I approve, any status
+curl -s $BASE/approvals -H "Authorization: Bearer $TOKEN_MGR" # waiting on me
+curl -s "$BASE/approvals?scope=all" -H "Authorization: Bearer $TOKEN_MGR" # everything I approve, any status
 ```
 - **Who sees what:**
   - **Manager:** `PENDING_MANAGER` requests from their reports.

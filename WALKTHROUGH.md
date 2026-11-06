@@ -1,4 +1,4 @@
-# 👋 Vista: recruiter walkthrough (about 10 minutes)
+# Vista: recruiter walkthrough (about 10 minutes)
 
 This tour covers every feature, one role at a time.
 
@@ -8,7 +8,7 @@ This tour covers every feature, one role at a time.
 - The password for every demo account is **`Vista#Leave-2026!`**.
 - If Clerk asks for a verification code, type **`424242`**.
 - To switch roles, click **Sign out** (top right) and sign in with the next account.
-- The demo logins are also on the sign-in page under **"👋 Hey Recruiter, I've made logins for you"**.
+- The demo logins are also on the sign-in page under **"Hey Recruiter, I've made logins for you"**.
 
 > The company is already populated: 22 people in Engineering, Operations, Customer Experience and Product & Design, with 10 months of leave history. You'll find real-looking queues, people on leave today, and upcoming leave.
 
@@ -82,7 +82,7 @@ This tour covers every feature, one role at a time.
 2. **Step 1 – Profile:** name, job title, mobile (try an invalid one to see the check), location.
 3. **Step 2 – Join your team:** search **Meera** or **VST-0002**, add a note, then send.
 4. Sign in as the **Manager** → **My team** → **Accept**.
-5. Back in your account, you can apply for leave. **You'll also get real emails** from `vista@praneethm.dev`, e.g. "You're in Meera Menon's team 🎉".
+5. Back in your account, you can apply for leave. **You'll also get real emails** from `vista@praneethm.dev`, e.g. "You're in Meera Menon's team".
 
 > Demo accounts never get email, because their addresses can't receive it. Your real address will.
 

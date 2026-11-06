@@ -8,7 +8,7 @@ Vista is an employee leave management system:
 - **Leave longer than 3 consecutive days** needs a supporting document and **two approvals (Manager → HOD)**.
 - **Every action** is recorded in an audit log, and **email notifications** go out at each step.
 
-## 🌐 Live
+## Live
 
 | | URL |
 |---|---|
@@ -18,7 +18,7 @@ Vista is an employee leave management system:
 
 Hosted on **Vercel**: Express runs as a serverless function and the React app is served from the CDN. The data is in **MongoDB Atlas**.
 
-### 👋 Demo logins
+### Demo logins
 
 The password for all of them is **`Vista#Leave-2026!`**. If Clerk asks for a verification code, enter **`424242`**.
 
@@ -35,7 +35,7 @@ The demo database holds a realistic company: **22 people in 4 departments, about
 
 ---
 
-## ✨ Features
+## Features
 
 ### Employee
 - **Apply for leave:**
@@ -51,7 +51,7 @@ The demo database holds a realistic company: **22 people in 4 departments, about
 - **Cancel** a pending request, or **take back approved leave** up to *N* days before it starts (set by the sysadmin). The balance is restored automatically and the manager is emailed.
 
 ### Manager
-- **Approvals queue:** only the requests waiting on *you*. Each card shows the document count and a ⚠ flag when teammates are already off.
+- **Approvals queue:** only the requests waiting on *you*. Each card shows the document count and a warning flag when teammates are already off.
 - **"Before you decide" panel:**
   - the employee's balance after approval
   - which teammates are already off on those dates
@@ -95,7 +95,7 @@ The demo database holds a realistic company: **22 people in 4 departments, about
 
 ---
 
-## ✉️ Email notifications (Resend), working
+## Email notifications (Resend), working
 
 Emails are sent through **Resend** from **`vista@praneethm.dev`**, a verified custom domain, using a branded HTML template that renders in Gmail and Outlook.
 
@@ -114,7 +114,7 @@ Emails are sent through **Resend** from **`vista@praneethm.dev`**, a verified cu
 
 ---
 
-## 🧱 Tech stack
+## Tech stack
 
 | Layer | Technology |
 |---|---|
@@ -129,7 +129,7 @@ Emails are sent through **Resend** from **`vista@praneethm.dev`**, a verified cu
 
 ---
 
-## 🚀 Run it locally
+## Run it locally
 
 **Requirements:**
 - Node 20+
@@ -139,11 +139,19 @@ Emails are sent through **Resend** from **`vista@praneethm.dev`**, a verified cu
 
 ```bash
 git clone https://github.com/praneethm05/vista && cd vista
-cp .env.example .env          # fill MONGODB_URI, Clerk keys (and RESEND_API_KEY / EMAIL_FROM / APP_URL for email)
-npm run setup                 # installs root, server and client
-npm run seed                  # creates the 4 demo logins (Clerk + MongoDB)
-npm --prefix server run seed:org   # optional: realistic company with leave history
-npm run dev                   # API → http://localhost:4000 · Web → http://localhost:5173
+
+# 1. Configure: MongoDB URI, Clerk keys (optional: RESEND_API_KEY, EMAIL_FROM, APP_URL)
+cp .env.example .env
+
+# 2. Install root, server and client
+npm run setup
+
+# 3. Create the 4 demo logins, then (optional) a realistic company with leave history
+npm run seed
+npm --prefix server run seed:org
+
+# 4. Start: API on http://localhost:4000, web app on http://localhost:5173
+npm run dev
 ```
 
 | Command | What it does |
@@ -155,7 +163,7 @@ npm run dev                   # API → http://localhost:4000 · Web → http://
 
 ---
 
-## 🏗 Architecture
+## Architecture
 
 ```
  React SPA (Vite)                    Express API (TypeScript)                         MongoDB Atlas
@@ -196,21 +204,21 @@ Full engineering review: [`docs/REVIEW.md`](docs/REVIEW.md) covers the requireme
 
 ---
 
-## 📚 Docs
+## Docs
 - [`WALKTHROUGH.md`](WALKTHROUGH.md): a guided tour for recruiters
 - [`docs/API.md`](docs/API.md): every endpoint with curl examples (paste them into Postman)
 - [`docs/SIMULATION.md`](docs/SIMULATION.md): the 20-person corporate simulation report
 - [`docs/REVIEW.md`](docs/REVIEW.md): senior engineering review
 - [`docs/PLAN.md`](docs/PLAN.md): the original plan · [`docs/problem-statement.docx`](docs/problem-statement.docx): the brief
 
-## 🔭 What I'd do next
+## What I'd do next
 - **Transactions:** a Mongo transaction for status + audit, and an email outbox with retries.
 - **Leave calendar:** public holidays per location, half days, accrual and carry-forward, leave that crosses the year end split by year.
 - **Delegation:** an approver on leave hands their queue to a deputy.
 - **Testing:** Playwright end-to-end with `@clerk/testing`, axe accessibility checks, Stryker mutation testing, an OWASP ZAP scan in CI.
 - **Scale:** pre-signed S3 uploads, pagination, rate limiting, a tamper-evident (hash-chained) audit log.
 
-## 🤖 How AI was used
+## How AI was used
 I used Claude Code as a pair programmer, while I owned the scope, the design and every decision.
 
 **Process:**

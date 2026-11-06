@@ -128,21 +128,21 @@ A new request whose dates overlap one of the employee's PENDING_*, INFO_REQUESTE
 
 ## API
 ```
-GET  /api/health
-GET  /api/me                         → { id, name, role, avatarSeed, balances[] }
-GET  /api/leave-types
-POST /api/documents (multipart)      → 201 {id} | 400 | 413 | 415
-GET  /api/documents/:id              → file | 404
+GET /api/health
+GET /api/me → { id, name, role, avatarSeed, balances[] }
+GET /api/leave-types
+POST /api/documents (multipart) → 201 {id} | 400 | 413 | 415
+GET /api/documents/:id → file | 404
 POST /api/leaves {leaveType, fromDate, toDate, reason, documentIds[]}
                                      → 201 | 400 | 409 OVERLAP | 422 DOCUMENT_REQUIRED | INSUFFICIENT_BALANCE
-GET  /api/leaves/mine?status=        → history
-GET  /api/leaves/:id                 → request + timeline | 404
-POST /api/leaves/:id/cancel          → 200 | 409
-POST /api/leaves/:id/respond {comment, documentIds[]}  (reply to info request) → 200 | 409
-GET  /api/approvals?status=pending   → manager: PENDING_MANAGER of reports; HOD: PENDING_HOD
+GET /api/leaves/mine?status= → history
+GET /api/leaves/:id → request + timeline | 404
+POST /api/leaves/:id/cancel → 200 | 409
+POST /api/leaves/:id/respond {comment, documentIds[]} (reply to info request) → 200 | 409
+GET /api/approvals?status=pending → manager: PENDING_MANAGER of reports; HOD: PENDING_HOD
 POST /api/leaves/:id/actions {action: APPROVE|REJECT|REQUEST_INFO, comment}
                                      → 200 | 400 | 403 | 409 STALE
-GET  /api/audit?requestId=           → approvers / HOD
+GET /api/audit?requestId= → approvers / HOD
 ```
 
 ## Server file layout
