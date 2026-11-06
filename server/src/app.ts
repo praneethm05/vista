@@ -8,8 +8,9 @@ import { leavesRouter } from './routes/leaves.js';
 import { approvalsRouter } from './routes/approvals.js';
 import { documentsRouter } from './routes/documents.js';
 import { metaRouter } from './routes/meta.js';
+import { connectDb } from './db.js';
 
-export function createApp(options: { clientOrigin?: string } = {}) {
+export function createApp(options: { clientOrigin?: string; connect?: boolean } = {}) {
   const app = express();
   app.use(helmet());
   app.use(cors({ origin: options.clientOrigin ?? 'http://localhost:5173', credentials: true }));
@@ -17,6 +18,12 @@ export function createApp(options: { clientOrigin?: string } = {}) {
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'vista', time: new Date().toISOString() }));
 
+  if (options.connect !== false) {
+    app.use('/api', async (_req, _res, next) => {
+      await connectDb();
+      next();
+    });
+  }
   if (process.env.NODE_ENV !== 'test') app.use(clerkMiddleware());
   app.use('/api', requireAuth);
   app.use('/api', metaRouter);

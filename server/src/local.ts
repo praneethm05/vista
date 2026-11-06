@@ -1,10 +1,10 @@
-import mongoose from 'mongoose';
+// Local development entry: `npm run dev` / `npm start`.
 import { loadEnv } from './config/env.js';
+import { connectDb } from './db.js';
 import { createApp } from './app.js';
 
 const env = loadEnv();
-
-await mongoose.connect(env.MONGODB_URI, { dbName: 'vista' });
+await connectDb(env.MONGODB_URI);
 console.log('✓ Connected to MongoDB');
 
 createApp({ clientOrigin: env.CLIENT_ORIGIN }).listen(env.PORT, () => {

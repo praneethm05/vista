@@ -17,7 +17,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   if (err instanceof multer.MulterError) {
     const tooBig = err.code === 'LIMIT_FILE_SIZE';
     return res.status(tooBig ? 413 : 400).json({
-      error: { code: tooBig ? 'FILE_TOO_LARGE' : 'UPLOAD_ERROR', message: tooBig ? 'Files must be 5 MB or smaller.' : 'The upload failed. Please try again.' },
+      error: { code: tooBig ? 'FILE_TOO_LARGE' : 'UPLOAD_ERROR', message: tooBig ? 'Files must be 4 MB or smaller.' : 'The upload failed. Please try again.' },
     });
   }
   console.error(err);

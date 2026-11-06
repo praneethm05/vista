@@ -6,7 +6,8 @@ import type { CurrentUser } from '../auth/user.js';
 import { record } from './auditService.js';
 
 export const ALLOWED_MIME = ['application/pdf', 'image/png', 'image/jpeg'];
-export const MAX_BYTES = 5 * 1024 * 1024;
+// Vercel functions accept request bodies up to 4.5 MB, so files are capped at 4 MB.
+export const MAX_BYTES = 4 * 1024 * 1024;
 
 export async function upload(user: CurrentUser, file: Express.Multer.File | undefined) {
   if (!file) throw new AppError('FILE_REQUIRED', 400, 'Please choose a file to upload.');

@@ -6,7 +6,7 @@ import { createApp } from '../app.js';
 import { addDays, formatDay, todayUtc } from '../domain/dates.js';
 
 process.env.NODE_ENV = 'test';
-const app = createApp();
+const app = createApp({ connect: false });
 let mongo: MongoMemoryServer;
 
 const users = {

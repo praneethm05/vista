@@ -43,6 +43,7 @@ export function DocumentUpload({ value, onChange }: { value: DocMeta[]; onChange
     try {
       const added: DocMeta[] = [];
       for (const file of Array.from(files)) {
+        if (file.size > 4 * 1024 * 1024) throw new Error(`${file.name} is larger than 4 MB. Please upload a smaller file.`);
         const form = new FormData();
         form.append('file', file);
         const doc = await api<{ id: string; filename: string; mimeType: string; size: number }>('/documents', { method: 'POST', body: form });
@@ -59,7 +60,7 @@ export function DocumentUpload({ value, onChange }: { value: DocMeta[]; onChange
     <div className="space-y-2">
       <label className="flex cursor-pointer flex-col items-center gap-1 rounded-control border-2 border-dashed border-brand/30 bg-brand-tint/40 px-4 py-5 text-center hover:bg-brand-tint">
         <span className="text-small font-semibold text-brand">{busy ? 'Uploading…' : 'Choose a file'}</span>
-        <span className="text-tiny text-muted">PDF, PNG or JPG · up to 5 MB</span>
+        <span className="text-tiny text-muted">PDF, PNG or JPG · up to 4 MB</span>
         <input type="file" accept=".pdf,.png,.jpg,.jpeg" multiple className="sr-only" disabled={busy} onChange={(e) => upload(e.target.files)} />
       </label>
       {error && <p className="text-small text-danger">{error}</p>}
