@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, useApi, useQuery } from '../lib/api';
 import { useMe } from '../lib/me';
-import { countDays, plural, todayIso } from '../lib/format';
+import { countDays, plural, shortDay, todayIso, weekday } from '../lib/format';
 import type { DocMeta, LeaveRequest, LeaveType } from '../lib/types';
 import { Alert, ErrorState, PageHeader, Spinner } from '../components/ui';
 import { DocumentUpload } from '../components/Documents';
@@ -29,6 +29,24 @@ export function ApplyLeave() {
   const needsDoc = !!type && (type.documentAlways || isLong);
   const balance = me.balances.find((b) => b.code === leaveType);
   const after = balance?.available != null ? balance.available - days.working : null;
+  const weekendDays = days.calendar - days.working;
+
+  /**
+   * One derived form state drives the summary, the hints and the submit button,
+   * so the UI always explains *why* a request can't be sent yet (same rules as the server).
+   */
+  const blockers: string[] = [];
+  if (fromDate && toDate) {
+    const earliest = new Date(Date.now() - (type?.backdateDays ?? 0) * 86_400_000).toISOString().slice(0, 10);
+    if (toDate < fromDate) blockers.push('The end date is before the start date.');
+    else if (fromDate < earliest) blockers.push(type?.backdateDays ? `${type.label} can start at most ${type.backdateDays} days ago.` : 'The start date is in the past.');
+    else if (days.working === 0) blockers.push(`${days.calendar === 1 ? `${shortDay(fromDate)} is a ${weekday(fromDate)}` : 'These dates are all weekend days'}. Weekends don't use leave, so pick a weekday.`);
+    else if (after !== null && after < 0) blockers.push(`You have ${balance!.available} days of ${balance!.label.toLowerCase()} left, but this needs ${days.working}.`);
+  }
+  if (needsDoc && docs.length === 0 && days.working > 0) blockers.push('Attach a supporting document.');
+  if (reason.trim().length > 0 && reason.trim().length < 3) blockers.push('Add a slightly longer reason.');
+  const formState: 'empty' | 'blocked' | 'ready' =
+    !fromDate || !toDate || !reason.trim() ? (blockers.length ? 'blocked' : 'empty') : blockers.length ? 'blocked' : 'ready';
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -82,11 +100,13 @@ export function ApplyLeave() {
               <label className="label" htmlFor="from">From</label>
               <input id="from" type="date" className="field data" value={fromDate} min={type?.backdateDays ? undefined : todayIso()}
                 onChange={(e) => { setFromDate(e.target.value); if (!toDate || e.target.value > toDate) setToDate(e.target.value); }} required />
+              <p className="mt-1 text-tiny text-muted">{weekday(fromDate)}</p>
               {fieldErrors.fromDate && <p className="mt-1 text-small text-danger">{fieldErrors.fromDate}</p>}
             </div>
             <div>
               <label className="label" htmlFor="to">To</label>
               <input id="to" type="date" className="field data" value={toDate} min={fromDate || undefined} onChange={(e) => setToDate(e.target.value)} required />
+              <p className="mt-1 text-tiny text-muted">{weekday(toDate)}</p>
               {fieldErrors.toDate && <p className="mt-1 text-small text-danger">{fieldErrors.toDate}</p>}
             </div>
           </div>
@@ -112,8 +132,9 @@ export function ApplyLeave() {
           )}
 
           {formError && <Alert>{formError}</Alert>}
+          {formState === 'empty' && <p className="text-small text-muted">Choose your dates and add a reason to continue.</p>}
           <div className="flex flex-wrap gap-3">
-            <button className="btn-primary" disabled={submitting}>{submitting ? 'Submitting…' : 'Submit request'}</button>
+            <button className="btn-primary" disabled={submitting || formState !== 'ready'}>{submitting ? 'Submitting…' : 'Submit request'}</button>
             <button type="button" className="btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
           </div>
         </form>
@@ -124,25 +145,36 @@ export function ApplyLeave() {
             <p className="text-small text-muted">Pick your dates to see how many days this uses and who needs to approve it.</p>
           ) : (
             <>
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-[3rem] leading-none">{days.working}</span>
-                <span className="text-small text-muted">{days.working === 1 ? 'working day' : 'working days'} · {plural(days.calendar, 'calendar day')}</span>
-              </div>
-              {after !== null && (
-                <p className={`text-small ${after < 0 ? 'font-semibold text-danger' : 'text-muted'}`}>
-                  {after < 0 ? `That's ${-after} more than you have left.` : `${balance!.label}: ${balance!.available} → ${after} days left after this.`}
-                </p>
-              )}
               <div>
-                <p className="label">Approval route</p>
-                <ol className="flex flex-wrap items-center gap-2 text-small">
-                  <li className="rounded-full bg-warning-tint px-3 py-1 font-semibold text-warning">Manager</li>
-                  {isLong && <><li aria-hidden>→</li><li className="rounded-full bg-brand-tint px-3 py-1 font-semibold text-brand">HOD</li></>}
-                </ol>
-                {isLong && <p className="mt-2 text-tiny text-muted">Longer than {threshold} days, so your HOD approves too.</p>}
+                <p className="data text-small text-muted">{days.calendar === 1 ? shortDay(fromDate) : `${shortDay(fromDate)} → ${shortDay(toDate)}`}</p>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className={`font-display text-[3rem] leading-none ${days.working === 0 ? 'text-muted' : ''}`}>{days.working}</span>
+                  <span className="text-small text-muted">{days.working === 1 ? 'working day' : 'working days'}</span>
+                </div>
+                {weekendDays > 0 && <p className="mt-1 text-tiny text-muted">{plural(weekendDays, 'weekend day')} not counted</p>}
               </div>
+              {after !== null && days.working > 0 && after >= 0 && (
+                <p className="text-small text-muted">{balance!.label}: <strong className="text-ink">{balance!.available} → {after}</strong> days left after this.</p>
+              )}
+              {days.working > 0 && (
+                <div>
+                  <p className="label">Approval route</p>
+                  <ol className="flex flex-wrap items-center gap-2 text-small">
+                    <li className="rounded-full bg-warning-tint px-3 py-1 font-semibold text-warning">Manager</li>
+                    {isLong && <><li aria-hidden>→</li><li className="rounded-full bg-brand-tint px-3 py-1 font-semibold text-brand">HOD</li></>}
+                  </ol>
+                  {isLong && <p className="mt-2 text-tiny text-muted">Longer than {threshold} consecutive days, so your HOD approves too.</p>}
+                </div>
+              )}
             </>
           )}
+          {blockers.length > 0 ? (
+            <ul className="space-y-2" aria-live="polite">
+              {blockers.map((b) => <li key={b} className="rounded-control bg-warning-tint px-3 py-2 text-small font-medium text-warning">{b}</li>)}
+            </ul>
+          ) : formState === 'ready' ? (
+            <p className="rounded-control bg-success-tint px-3 py-2 text-small font-medium text-success" aria-live="polite">Ready to submit.</p>
+          ) : null}
         </aside>
       </div>
     </>

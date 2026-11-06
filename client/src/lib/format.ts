@@ -39,3 +39,8 @@ export function countDays(from: string, to: string) {
   return { calendar: Math.round((b - a) / DAY) + 1, working };
 }
 export const todayIso = () => new Date().toISOString().slice(0, 10);
+
+const weekdayFmt = new Intl.DateTimeFormat('en-IN', { weekday: 'long', timeZone: 'UTC' });
+const shortFmt = new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+export const weekday = (iso: string) => (iso ? weekdayFmt.format(new Date(`${iso}T00:00:00Z`)) : '');
+export const shortDay = (iso: string) => shortFmt.format(new Date(`${iso}T00:00:00Z`));
