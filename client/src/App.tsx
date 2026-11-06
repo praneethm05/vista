@@ -10,20 +10,32 @@ import { RequestDetail } from './pages/RequestDetail';
 import { Approvals } from './pages/Approvals';
 import { ApprovalDetail } from './pages/ApprovalDetail';
 import { AuditPage } from './pages/AuditPage';
+import { JoinTeam } from './pages/JoinTeam';
+import { TeamPage } from './pages/TeamPage';
 
 function RoleRoutes() {
   const { me } = useMe();
   const approver = me.role !== 'EMPLOYEE';
+  const needsTeam = me.role === 'EMPLOYEE' && !me.managerId;
+  const home = me.role === 'ADMIN' || me.role === 'MANAGER' ? '/approvals' : '/';
   return (
     <Routes>
       <Route element={<Shell />}>
-        <Route path="/" element={<MyLeave />} />
-        <Route path="/apply" element={<ApplyLeave />} />
+        {needsTeam ? (
+          <Route path="/" element={<JoinTeam />} />
+        ) : me.role !== 'ADMIN' && (
+          <>
+            <Route path="/" element={<MyLeave />} />
+            <Route path="/apply" element={<ApplyLeave />} />
+          </>
+        )}
         <Route path="/leaves/:id" element={<RequestDetail />} />
         {approver && <Route path="/approvals" element={<Approvals />} />}
         {approver && <Route path="/approvals/:id" element={<ApprovalDetail />} />}
-        {me.role === 'HOD' && <Route path="/audit" element={<AuditPage />} />}
-        <Route path="*" element={<Navigate to={approver ? '/approvals' : '/'} replace />} />
+        {me.role === 'MANAGER' && <Route path="/team" element={<TeamPage />} />}
+        {me.role === 'ADMIN' && <Route path="/people" element={<TeamPage />} />}
+        {me.role === 'ADMIN' && <Route path="/audit" element={<AuditPage />} />}
+        <Route path="*" element={<Navigate to={home} replace />} />
       </Route>
     </Routes>
   );

@@ -14,6 +14,6 @@ metaRouter.get('/leave-types', (_req, res) => {
   res.json({ types: LEAVE_TYPES, longLeaveThresholdDays: LONG_LEAVE_THRESHOLD_DAYS });
 });
 
-metaRouter.get('/audit', requireRole('HOD'), async (_req, res) => {
+metaRouter.get('/audit', requireRole('ADMIN'), async (_req, res) => {
   res.json(await recent());
 });

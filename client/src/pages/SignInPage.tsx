@@ -20,7 +20,7 @@ export function SignInPage() {
             Apply in under a minute. Know exactly where your request is: with your manager, with your HOD, or approved.
           </p>
           <ul className="mt-8 grid grid-cols-3 gap-3 text-small">
-            {['7 leave types', 'Manager → HOD flow', 'Full audit trail'].map((t) => (
+            {['7 leave types', 'Manager → Admin flow', 'Full audit trail'].map((t) => (
               <li key={t} className="rounded-control bg-white/10 px-3 py-2.5 font-semibold backdrop-blur">{t}</li>
             ))}
           </ul>
@@ -30,8 +30,26 @@ export function SignInPage() {
         <div className="lg:hidden"><Logo /></div>
         <div className="w-full max-w-md">
           <h2 className="mb-1 text-center uppercase">Welcome back</h2>
-          <p className="mb-6 text-center text-small text-muted">Sign in with your work Google account or email.</p>
-          <SignIn routing="hash" appearance={clerkAppearance} />
+          <p className="mb-5 text-center text-small text-muted">Sign in or create your account with your work email.</p>
+          <div className="mb-5 flex items-start gap-3 rounded-control border border-brand/15 bg-brand-tint/60 px-4 py-3 text-small">
+            <span aria-hidden className="mt-0.5 text-brand">ⓘ</span>
+            <p>
+              <strong>Use your organisation email</strong> (e.g. name@yourcompany.com).
+              <span className="block text-tiny text-muted">Personal email domains are allowed during the pilot.</span>
+            </p>
+          </div>
+          <SignIn routing="hash" withSignUp appearance={clerkAppearance} />
+          <details className="mt-5 rounded-control border border-line bg-surface px-4 py-3 text-small">
+            <summary className="cursor-pointer font-semibold text-brand">Evaluating Vista? Use a demo account</summary>
+            <table className="mt-3 w-full text-left">
+              <tbody className="data text-tiny">
+                {[['Admin · HOD', 'admin@vista-demo.com'], ['Manager', 'manager@vista-demo.com'], ['Employee', 'employee@vista-demo.com']].map(([role, email]) => (
+                  <tr key={email} className="border-t border-line"><td className="py-1.5 pr-3 font-sans font-semibold">{role}</td><td className="py-1.5">{email}</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 text-tiny text-muted">Password for all three: <span className="data font-semibold text-ink">Vista#Leave-2026!</span></p>
+          </details>
         </div>
       </section>
     </div>

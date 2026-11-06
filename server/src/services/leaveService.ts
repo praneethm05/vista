@@ -18,7 +18,7 @@ export async function submit(user: CurrentUser, input: CreateLeaveInput) {
   const working = workingDays(from, to);
 
   if (!user.managerId || !user.hodId) {
-    throw new AppError('NO_APPROVER', 422, 'You have no manager or HOD assigned yet. Please contact HR.');
+    throw new AppError('NO_TEAM', 422, 'Join a team first: once your manager accepts you, you can apply for leave.');
   }
   if (from < addDays(todayUtc(), -type.backdateDays)) {
     const hint = type.backdateDays ? ` ${type.label} can start at most ${type.backdateDays} days ago.` : '';
@@ -54,7 +54,8 @@ export async function submit(user: CurrentUser, input: CreateLeaveInput) {
     workingDays: working,
     reason: input.reason,
     documentIds: input.documentIds,
-    requiresHod: isLongLeave(days),
+    // Second level only when it's a different person (e.g. a manager's own leave goes to the admin once).
+    requiresHod: isLongLeave(days) && user.managerId !== user.hodId,
     status: 'PENDING_MANAGER',
     stage: 'MANAGER',
   });

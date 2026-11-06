@@ -26,7 +26,7 @@ The default Clerk token lives about **60 seconds**. For longer Postman sessions:
 1. Create a JWT template named `postman` in the Clerk dashboard (*Configure → Sessions → JWT templates*) and set its lifetime to 3600 s.
 2. Get a token with `await window.Clerk.session.getToken({ template: 'postman' })`.
 
-Use one token per role, e.g. `TOKEN_EMP`, `TOKEN_MGR` and `TOKEN_HOD`, to walk through the full approval flow.
+Use one token per demo account: `TOKEN_EMP` (employee@vista-demo.com), `TOKEN_MGR` (manager@), `TOKEN_HOD` (admin@, the second-level approver), and `TOKEN_NEW` for a fresh sign-up, to walk through the full approval flow.
 
 ### Response conventions
 - JSON everywhere. Dates are `YYYY-MM-DD` in requests and ISO strings in responses.
@@ -305,7 +305,51 @@ curl -s -X POST $BASE/approvals/$LEAVE_ID/actions -H "Authorization: Bearer $TOK
 wait
 ```
 
-## 14. Audit log (HOD)
+## 14. Teams: join requests
+
+**Find a manager** (search by name, email or employee ID):
+```bash
+curl -s "$BASE/team/managers?q=VST-0002" -H "Authorization: Bearer $TOKEN_NEW"
+```
+
+**My latest join request:**
+```bash
+curl -s $BASE/team/join-request -H "Authorization: Bearer $TOKEN_NEW"
+```
+
+**Ask to join** (a new request replaces any earlier pending one):
+```bash
+curl -s -X POST $BASE/team/join-request -H "Authorization: Bearer $TOKEN_NEW" -H "Content-Type: application/json" \
+  -d '{"managerId":"<manager clerk id from search>","message":"I joined the Payments squad"}'
+```
+- **Success:** `201`.
+- **Errors:**
+  - `404 MANAGER_NOT_FOUND`
+  - `409 ALREADY_IN_TEAM`
+
+**Manager inbox** (pending requests to join their team):
+```bash
+curl -s $BASE/team/requests -H "Authorization: Bearer $TOKEN_MGR"
+```
+
+**Accept or decline:**
+```bash
+curl -s -X POST $BASE/team/requests/<id>/decision -H "Authorization: Bearer $TOKEN_MGR" -H "Content-Type: application/json" \
+  -d '{"decision":"ACCEPT","comment":"Welcome aboard"}'
+```
+- **Success:** `200`. On accept, the employee gets `managerId` = this manager and `hodId` = the admin.
+- **Errors:**
+  - `409 ALREADY_DECIDED` on a second click
+  - `403` for non-managers
+
+**Team members (manager) / everyone (admin):**
+```bash
+curl -s $BASE/team/members -H "Authorization: Bearer $TOKEN_MGR"
+```
+
+> An employee with no team gets `422 NO_TEAM` from `POST /leaves`.
+
+## 15. Audit log (Admin)
 
 ```bash
 curl -s $BASE/audit -H "Authorization: Bearer $TOKEN_HOD"
@@ -313,6 +357,9 @@ curl -s $BASE/audit -H "Authorization: Bearer $TOKEN_HOD"
 - **Returns:** the latest 100 audit entries, newest first.
 - **Each entry:** `actorName`, `actorRole`, `action`, `fromStatus`, `toStatus`, `comment` and `at`.
 - **Actions recorded:**
+  - `TEAM_JOIN_REQUESTED`
+  - `TEAM_JOIN_ACCEPTED`
+  - `TEAM_JOIN_REJECTED`
   - `SUBMITTED`
   - `APPROVED_BY_MANAGER`
   - `APPROVED`
@@ -321,7 +368,7 @@ curl -s $BASE/audit -H "Authorization: Bearer $TOKEN_HOD"
   - `INFO_PROVIDED`
   - `CANCELLED`
   - `DOCUMENT_UPLOADED`
-- **Errors:** `403` for non-HOD users.
+- **Errors:** `403` for non-admin users.
 
 ---
 

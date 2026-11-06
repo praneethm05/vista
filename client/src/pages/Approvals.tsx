@@ -15,7 +15,7 @@ export function Approvals() {
   return (
     <>
       <PageHeader
-        eyebrow={me.role === 'HOD' ? 'Head of Department' : 'Manager'}
+        eyebrow={me.role === 'ADMIN' ? 'Admin · HOD approvals' : 'Manager'}
         title="Approvals"
         action={
           <div className="flex rounded-full border border-line bg-surface p-1 text-small font-semibold" role="tablist">

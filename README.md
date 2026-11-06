@@ -31,20 +31,29 @@ npm run setup                 # installs root, server and client
 npm run dev                   # API → http://localhost:4000 · Web → http://localhost:5173
 ```
 
-**First-time demo users (2 minutes):**
-1. Open http://localhost:5173 and sign in once with each demo account. Gmail aliases work, e.g. `you+hod@gmail.com`.
-2. Assign roles and the reporting line, in the order HOD, manager, then employees:
-   ```bash
-   npm run roles -- you+hod@gmail.com you+mgr@gmail.com you+emp1@gmail.com you+emp2@gmail.com
-   ```
-3. Sign in again: each user now sees screens for their role.
+**Demo accounts for evaluators** (created by `npm run seed`, safe to re-run):
+
+| Role | Email | Password |
+|---|---|---|
+| Admin (acts as HOD: 2nd-level approver, People, Audit log) | `admin@vista-demo.com` | `Vista#Leave-2026!` |
+| Manager (approves their team, accepts join requests) | `manager@vista-demo.com` | `Vista#Leave-2026!` |
+| Employee (already in the manager's team) | `employee@vista-demo.com` | `Vista#Leave-2026!` |
+
+**Any new sign-up** becomes an **Employee without a team**:
+1. On the **Join your team** screen, find a manager by name or ID (e.g. `VST-0002`) and send a request.
+2. The manager accepts or declines it under **My team**.
+3. Once accepted, the employee can apply for leave, and the Admin is automatically their second-level approver.
+
+The sign-in page asks for an **organisation email**; personal domains are accepted during the pilot.
+
+> Clerk setup: enable **Email + Password** (and optionally Google) under *User & Authentication*. The demo users are created through the Clerk Backend API.
 
 | Command | What it does |
 |---|---|
 | `npm run dev` | API (`tsx watch`) + web (Vite) together |
-| `npm test` | 18 tests: workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
+| `npm test` | 19 tests: workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
 | `npm run build` | Production build of the client |
-| `npm run roles -- …` | Set Clerk roles (HOD, manager, employees) |
+| `npm run seed` | Create or refresh the 3 demo accounts (Admin, Manager, Employee) |
 
 ---
 
@@ -116,6 +125,8 @@ PENDING_* / INFO_REQUESTED ─employee cancels─► CANCELLED
 | Collection | Key fields |
 |---|---|
 | `leaverequests` | employeeId, **employeeName**, managerId, hodId, leaveType, **fromDate**, **toDate**, **reason**, calendarDays, workingDays, documentIds, requiresHod, status, stage, lastComment, **version** |
+| `users` | clerkId, name, email, role (EMPLOYEE/MANAGER/ADMIN), employeeCode, department, managerId, hodId |
+| `teamrequests` | employeeId, employeeName, managerId, message, status (PENDING/ACCEPTED/REJECTED/WITHDRAWN). A partial unique index allows one pending request per employee |
 | `auditlogs` | requestId, actorId, actorName, actorRole, action, fromStatus, toStatus, comment, at |
 | `documents` | ownerId, requestId, filename, mimeType, size, data (binary) |
 
@@ -134,7 +145,7 @@ PENDING_* / INFO_REQUESTED ─employee cancels─► CANCELLED
 | **Optimistic locking** (`version` field) | Two approvers clicking at the same time: the update only succeeds if the request is still in the state and version we read, so exactly one wins and the other gets **409**. Covered by a test. |
 | **Balances calculated from requests, not stored** | Balances come from approved and pending requests, so they can never drift out of sync. Re-checked at final approval, because the balance may have changed since submission. |
 | **Leave policy as data** (`domain/leaveTypes.ts`) | Adding a leave type means adding a row, with no code changes (Open/Closed). |
-| **Roles in Clerk `publicMetadata`** | Can only be set server-side, so users can't promote themselves. Approvers are copied onto the request at submit, so a later team change doesn't silently reroute requests already in progress. |
+| **Clerk for identity, MongoDB `users` for roles and teams** | Roles only change server-side (seed, or a manager accepting a join request), so users can't promote themselves. New sign-ups default to Employee with no team. Approvers are copied onto the request at submit, so a later team change doesn't silently reroute requests already in progress. |
 | **404 instead of 403** for other people's requests and documents | Doesn't reveal that the item exists (protects against IDOR, where someone changes an ID in the URL). |
 | **"> 3 consecutive days"** = calendar days `toDate − fromDate + 1` | Matches the wording of the brief. **Balances deduct working days** (Mon–Fri). Public holidays are out of scope. |
 | **Documents stored in MongoDB** (≤ 4 MB) | Zero extra infrastructure and works on serverless. At scale: S3/Blob with pre-signed uploads, keeping only the file details in Mongo. |
@@ -171,6 +182,7 @@ npm test
   - 404 for other people's data
   - 403 for employees on approver routes
   - balance limit
+  - join-team request: blocked until accepted, manager accepts once, a second click gets 409
 
 ---
 
@@ -203,7 +215,8 @@ npm test
   - pagination on the queue
   - rate limiting
   - move the audit log to a write-once store
-- **Admin UI** for roles and the org chart, instead of the CLI script.
+- **Org email enforcement:** turn on Clerk's allowed email domains, or sync from the HR system / SSO.
+- **Admin UI** to promote employees to managers.
 
 ## How AI was used
 I used Claude Code as a pair programmer, while I owned the design and the decisions:

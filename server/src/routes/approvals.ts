@@ -6,7 +6,7 @@ import * as leaves from '../services/leaveService.js';
 import type { LeaveRequestDoc } from '../models/LeaveRequest.js';
 
 export const approvalsRouter = Router();
-approvalsRouter.use(requireRole('MANAGER', 'HOD'));
+approvalsRouter.use(requireRole('MANAGER', 'ADMIN'));
 
 approvalsRouter.get('/', async (req, res) => {
   const scope = req.query.scope === 'all' ? 'all' : 'pending';

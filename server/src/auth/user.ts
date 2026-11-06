@@ -1,12 +1,13 @@
-export type Role = 'EMPLOYEE' | 'MANAGER' | 'HOD';
+export type Role = 'EMPLOYEE' | 'MANAGER' | 'ADMIN';
 
-/** The signed-in user, built from Clerk (identity) + publicMetadata (role and reporting line). */
+/** The signed-in user: identity from Clerk, role and team from Vista's User collection. */
 export interface CurrentUser {
   id: string;
   name: string;
   email: string;
   role: Role;
   department: string;
+  employeeCode: string;
   managerId: string | null;
   hodId: string | null;
   avatarSeed: string;

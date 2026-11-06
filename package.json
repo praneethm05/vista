@@ -7,7 +7,7 @@
     "dev": "concurrently -n api,web -c magenta,yellow \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "test": "npm --prefix server test",
     "build": "npm --prefix client run build",
-    "roles": "npm --prefix server run roles --"
+    "seed": "npm --prefix server run seed"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"

@@ -18,6 +18,9 @@ export const ACTION_LABEL: Record<string, string> = {
   INFO_PROVIDED: 'Provided more information',
   CANCELLED: 'Cancelled the request',
   DOCUMENT_UPLOADED: 'Uploaded a document',
+  TEAM_JOIN_REQUESTED: 'Asked to join a team',
+  TEAM_JOIN_ACCEPTED: 'Accepted a team member',
+  TEAM_JOIN_REJECTED: 'Declined a team request',
 };
 
 const dayFmt = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' });

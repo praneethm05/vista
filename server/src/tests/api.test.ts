@@ -3,6 +3,7 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { createApp } from '../app.js';
+import { User } from '../models/User.js';
 import { addDays, formatDay, todayUtc } from '../domain/dates.js';
 
 process.env.NODE_ENV = 'test';
@@ -10,10 +11,10 @@ const app = createApp({ connect: false });
 let mongo: MongoMemoryServer;
 
 const users = {
-  emp: { id: 'emp', name: 'Asha Rao', email: 'asha@x.com', role: 'EMPLOYEE', department: 'Eng', managerId: 'mgr', hodId: 'hod', avatarSeed: 'asha' },
-  emp2: { id: 'emp2', name: 'Ravi K', email: 'ravi@x.com', role: 'EMPLOYEE', department: 'Eng', managerId: 'mgr', hodId: 'hod', avatarSeed: 'ravi' },
-  mgr: { id: 'mgr', name: 'Meera M', email: 'meera@x.com', role: 'MANAGER', department: 'Eng', managerId: null, hodId: 'hod', avatarSeed: 'meera' },
-  hod: { id: 'hod', name: 'Harish H', email: 'harish@x.com', role: 'HOD', department: 'Eng', managerId: null, hodId: null, avatarSeed: 'harish' },
+  emp: { id: 'emp', name: 'Asha Rao', email: 'asha@x.com', role: 'EMPLOYEE', department: 'Eng', managerId: 'mgr', hodId: 'hod', employeeCode: 'VST-1', avatarSeed: 'asha' },
+  emp2: { id: 'emp2', name: 'Ravi K', email: 'ravi@x.com', role: 'EMPLOYEE', department: 'Eng', managerId: 'mgr', hodId: 'hod', employeeCode: 'VST-1', avatarSeed: 'ravi' },
+  mgr: { id: 'mgr', name: 'Meera M', email: 'meera@x.com', role: 'MANAGER', department: 'Eng', managerId: null, hodId: 'hod', employeeCode: 'VST-1', avatarSeed: 'meera' },
+  hod: { id: 'hod', name: 'Harish H', email: 'harish@x.com', role: 'ADMIN', department: 'Eng', managerId: null, hodId: null, employeeCode: 'VST-1', avatarSeed: 'harish' },
 };
 const as = (u: keyof typeof users) => ({ 'x-test-user': JSON.stringify(users[u]) });
 // Start on the next Monday so working-day maths is predictable.
@@ -114,5 +115,26 @@ describe('leave API', () => {
     const res = await request(app).post('/api/leaves').set(as('emp')).send({ leaveType: 'PET', fromDate: day(0), toDate: day(2), reason: 'New puppy' });
     expect(res.status).toBe(422);
     expect(res.body.error.code).toBe('INSUFFICIENT_BALANCE');
+  });
+
+  it('new employee asks to join a team; manager accepts once (second click 409)', async () => {
+    await User.create({ clerkId: 'mgr', name: 'Meera M', email: 'meera@x.com', role: 'MANAGER', employeeCode: 'VST-0002', hodId: 'hod', department: 'Eng' });
+    await User.create({ clerkId: 'new', name: 'Neha N', email: 'neha@x.com', role: 'EMPLOYEE', employeeCode: 'VST-0009' });
+    const newbie = { 'x-test-user': JSON.stringify({ id: 'new', name: 'Neha N', email: 'neha@x.com', role: 'EMPLOYEE', department: 'Unassigned', employeeCode: 'VST-0009', managerId: null, hodId: null, avatarSeed: 'neha' }) };
+
+    const blocked = await request(app).post('/api/leaves').set(newbie).send({ leaveType: 'CASUAL', fromDate: day(0), toDate: day(0), reason: 'Errand' });
+    expect(blocked.body.error.code).toBe('NO_TEAM');
+
+    const found = await request(app).get('/api/team/managers?q=VST-0002').set(newbie);
+    expect(found.body.map((m: { id: string }) => m.id)).toEqual(['mgr']);
+    const asked = await request(app).post('/api/team/join-request').set(newbie).send({ managerId: 'mgr', message: 'New in Payments' });
+    expect(asked.status).toBe(201);
+
+    const inbox = await request(app).get('/api/team/requests').set(as('mgr'));
+    expect(inbox.body).toHaveLength(1);
+    const id = inbox.body[0]._id;
+    expect((await request(app).post(`/api/team/requests/${id}/decision`).set(as('mgr')).send({ decision: 'ACCEPT' })).status).toBe(200);
+    expect((await request(app).post(`/api/team/requests/${id}/decision`).set(as('mgr')).send({ decision: 'REJECT' })).status).toBe(409);
+    expect(await User.findOne({ clerkId: 'new' }).lean()).toMatchObject({ managerId: 'mgr', hodId: 'hod' });
   });
 });
