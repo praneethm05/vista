@@ -6,6 +6,7 @@ import { getBalances } from './balanceService.js';
 import { record } from './auditService.js';
 import { applyTransition, assertBalance, getVisible } from './leaveService.js';
 import * as notify from '../mail/notifications.js';
+import { withLock } from './lockService.js';
 
 const ACTION_TO_AUDIT = { APPROVE: 'APPROVED', REJECT: 'REJECTED', REQUEST_INFO: 'INFO_REQUESTED' } as const;
 
@@ -52,6 +53,12 @@ export async function withInsights(request: LeaveRequestDoc) {
 }
 
 export async function act(user: CurrentUser, id: string, input: ActionInput) {
+  const request = await getVisible(user, id);
+  // Final approvals for the same employee run one at a time, so two can't both pass the balance check.
+  return withLock(`balance:${request.employeeId}`, () => actUnlocked(user, id, input));
+}
+
+async function actUnlocked(user: CurrentUser, id: string, input: ActionInput) {
   const request = await getVisible(user, id);
   const next = transition(request as never, input.action, user, input.comment);
 

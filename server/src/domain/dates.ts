@@ -9,9 +9,17 @@ export function formatDay(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function todayUtc(): Date {
-  return parseDay(new Date().toISOString().slice(0, 10));
+/** The organisation's time zone. "Today" is the calendar date here, not in UTC. */
+export const ORG_TIME_ZONE = process.env.ORG_TIME_ZONE ?? 'Asia/Kolkata';
+const orgDateFmt = new Intl.DateTimeFormat('en-CA', { timeZone: ORG_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/** Today's date in the organisation's time zone (01:30 IST on 7 Nov is 7 Nov, though UTC says 6 Nov). */
+export function orgToday(now = new Date()): Date {
+  return parseDay(orgDateFmt.format(now));
 }
+
+/** @deprecated name kept for older call sites; same as orgToday(). */
+export const todayUtc = orgToday;
 
 /** Inclusive count of calendar days: 1 Nov → 5 Nov = 5. Used for the ">3 consecutive days" rule. */
 export function calendarDays(from: Date, to: Date): number {

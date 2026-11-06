@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { User } from '../models/User.js';
+import { LeaveRequest } from '../models/LeaveRequest.js';
 import { AppError, notFound } from '../domain/errors.js';
 import { forgetUser } from '../auth/requireAuth.js';
 import type { CurrentUser } from '../auth/user.js';
@@ -52,6 +53,14 @@ export async function changeOrg(actor: CurrentUser, targetId: string, input: z.i
   const department = input.department ?? target.department;
   await User.updateOne({ clerkId: targetId }, { $set: { role, managerId, hodId, department } });
   forgetUser(targetId);
+
+  // Requests this person is still waiting on follow them to the new reporting line (no orphans).
+  if (managerId !== target.managerId) {
+    await LeaveRequest.updateMany(
+      { employeeId: targetId, status: { $in: ['PENDING_MANAGER', 'INFO_REQUESTED'] }, stage: 'MANAGER' },
+      { $set: { managerId: managerId ?? hodId ?? targetId, hodId: hodId ?? managerId ?? targetId }, $inc: { version: 1 } },
+    );
+  }
 
   // If a manager moved under a different admin, their reports' second-level approver follows.
   if (role === 'MANAGER') {

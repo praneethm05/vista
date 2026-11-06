@@ -292,9 +292,12 @@ var DAY_MS = 24 * 60 * 60 * 1e3;
 function parseDay(value) {
   return /* @__PURE__ */ new Date(`${value}T00:00:00.000Z`);
 }
-function todayUtc() {
-  return parseDay((/* @__PURE__ */ new Date()).toISOString().slice(0, 10));
+var ORG_TIME_ZONE = process.env.ORG_TIME_ZONE ?? "Asia/Kolkata";
+var orgDateFmt = new Intl.DateTimeFormat("en-CA", { timeZone: ORG_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" });
+function orgToday(now = /* @__PURE__ */ new Date()) {
+  return parseDay(orgDateFmt.format(now));
 }
+var todayUtc = orgToday;
 function calendarDays(from, to) {
   return Math.round((to.getTime() - from.getTime()) / DAY_MS) + 1;
 }
@@ -441,10 +444,16 @@ var LeaveDocument = model5("Document", documentSchema);
 // src/services/documentService.ts
 var ALLOWED_MIME = ["application/pdf", "image/png", "image/jpeg"];
 var MAX_BYTES = 4 * 1024 * 1024;
+function sniffType(buf) {
+  if (buf.subarray(0, 5).toString("latin1") === "%PDF-") return "application/pdf";
+  if (buf.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return "image/png";
+  if (buf[0] === 255 && buf[1] === 216 && buf[2] === 255) return "image/jpeg";
+  return null;
+}
 async function upload(user, file) {
   if (!file) throw new AppError("FILE_REQUIRED", 400, "Please choose a file to upload.");
-  if (!ALLOWED_MIME.includes(file.mimetype)) {
-    throw new AppError("UNSUPPORTED_FILE", 415, "Only PDF, PNG or JPG files are allowed.");
+  if (!ALLOWED_MIME.includes(file.mimetype) || sniffType(file.buffer) !== file.mimetype) {
+    throw new AppError("UNSUPPORTED_FILE", 415, "Only real PDF, PNG or JPG files are allowed.");
   }
   const doc = await LeaveDocument.create({
     ownerId: user.id,
@@ -471,10 +480,12 @@ async function download(user, id) {
   if (!Types2.ObjectId.isValid(id)) throw notFound("Document");
   const doc = await LeaveDocument.findById(id).select("+data");
   if (!doc) throw notFound("Document");
-  if (doc.ownerId === user.id) return doc;
-  const request = doc.requestId ? await LeaveRequest.findById(doc.requestId).lean() : null;
-  const isApprover = request && (request.managerId === user.id || request.hodId === user.id);
-  if (!isApprover) throw notFound("Document");
+  if (doc.ownerId !== user.id) {
+    const request = doc.requestId ? await LeaveRequest.findById(doc.requestId).lean() : null;
+    const isApprover = request && (request.managerId === user.id || request.hodId === user.id);
+    if (!isApprover) throw notFound("Document");
+  }
+  await record(user, { requestId: doc.requestId, action: "DOCUMENT_VIEWED", meta: { documentId: doc.id, filename: doc.filename } });
   return doc;
 }
 async function listMeta(ids) {
@@ -904,6 +915,10 @@ async function withInsights(request) {
 }
 async function act(user, id, input) {
   const request = await getVisible(user, id);
+  return withLock(`balance:${request.employeeId}`, () => actUnlocked(user, id, input));
+}
+async function actUnlocked(user, id, input) {
+  const request = await getVisible(user, id);
   const next = transition(request, input.action, user, input.comment);
   if (next.status === "APPROVED") {
     await assertBalance(request.employeeId, request.leaveType, request.workingDays, new Date(request.fromDate).getUTCFullYear(), request);
@@ -1226,6 +1241,12 @@ async function changeOrg(actor, targetId, input) {
   const department = input.department ?? target.department;
   await User.updateOne({ clerkId: targetId }, { $set: { role, managerId, hodId, department } });
   forgetUser(targetId);
+  if (managerId !== target.managerId) {
+    await LeaveRequest.updateMany(
+      { employeeId: targetId, status: { $in: ["PENDING_MANAGER", "INFO_REQUESTED"] }, stage: "MANAGER" },
+      { $set: { managerId: managerId ?? hodId ?? targetId, hodId: hodId ?? managerId ?? targetId }, $inc: { version: 1 } }
+    );
+  }
   if (role === "MANAGER") {
     const reportIds = (await User.find({ managerId: targetId }).select("clerkId").lean()).map((u) => u.clerkId);
     await User.updateMany({ managerId: targetId }, { $set: { hodId: hodId ?? targetId } });
