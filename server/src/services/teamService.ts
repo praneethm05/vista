@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { forgetUser, toCurrentUser } from '../auth/requireAuth.js';
 import type { CurrentUser } from '../auth/user.js';
 import { record } from './auditService.js';
+import * as notify from '../mail/notifications.js';
 
 /** Managers an employee can ask to join. Search by name, email or employee code. */
 export async function searchManagers(query = '') {
@@ -37,6 +38,7 @@ export async function requestToJoin(user: CurrentUser, managerId: string, messag
     message: message.trim(),
   });
   await record(user, { action: 'TEAM_JOIN_REQUESTED', comment: message, meta: { managerId, managerName: manager.name } });
+  await notify.joinRequested(managerId, user.name, user.email, message);
   return request.toObject();
 }
 
@@ -69,6 +71,7 @@ export async function decide(manager: CurrentUser, id: string, decision: 'ACCEPT
     comment,
     meta: { employeeId: request.employeeId, employeeName: request.employeeName },
   });
+  await notify.joinDecided(request.employeeEmail, manager.name, decision === 'ACCEPT', comment);
   return updated;
 }
 

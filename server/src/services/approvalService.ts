@@ -5,6 +5,7 @@ import type { CurrentUser } from '../auth/user.js';
 import { getBalances } from './balanceService.js';
 import { record } from './auditService.js';
 import { applyTransition, assertBalance, getVisible } from './leaveService.js';
+import * as notify from '../mail/notifications.js';
 
 const ACTION_TO_AUDIT = { APPROVE: 'APPROVED', REJECT: 'REJECTED', REQUEST_INFO: 'INFO_REQUESTED' } as const;
 
@@ -67,5 +68,6 @@ export async function act(user: CurrentUser, id: string, input: ActionInput) {
     toStatus: next.status,
     comment: input.comment,
   });
+  await notify.leaveDecided(updated as LeaveRequestDoc, user.name, input.comment);
   return updated;
 }

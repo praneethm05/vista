@@ -10,6 +10,7 @@ import { getBalances } from './balanceService.js';
 import { record, timeline } from './auditService.js';
 import { assertOwned, linkToRequest, listMeta } from './documentService.js';
 import { withLock } from './lockService.js';
+import * as notify from '../mail/notifications.js';
 
 /**
  * One submission per employee at a time: the overlap and balance checks plus the insert
@@ -70,6 +71,7 @@ async function submitUnlocked(user: CurrentUser, input: CreateLeaveInput) {
   });
   await linkToRequest(input.documentIds, request._id);
   await record(user, { requestId: request._id, action: 'SUBMITTED', toStatus: 'PENDING_MANAGER', comment: input.reason });
+  await notify.leaveSubmitted(request.toObject() as LeaveRequestDoc);
   return request.toObject();
 }
 
@@ -165,5 +167,6 @@ export async function respond(user: CurrentUser, id: string, input: RespondInput
     comment: input.comment,
     meta: { documentIds: input.documentIds },
   });
+  await notify.infoProvided(updated as LeaveRequestDoc, input.comment);
   return updated;
 }
