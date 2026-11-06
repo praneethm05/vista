@@ -2,7 +2,7 @@ import { useQuery } from '../lib/api';
 import { useMe } from '../lib/me';
 import { fmtRange, shortDay } from '../lib/format';
 import type { Status } from '../lib/types';
-import { Avatar, ErrorState, PageHeader, SkeletonList, StatusBadge } from '../components/ui';
+import { Avatar, ErrorState, PageHeader, RoleTag, SkeletonList, StatusBadge } from '../components/ui';
 
 interface Stats {
   scope: 'team' | 'organisation';
@@ -13,6 +13,7 @@ interface Stats {
   byType: { code: string; label: string; days: number; requests: number }[];
   byStatus: Partial<Record<Status, number>>;
   roster: { id: string; name: string; email: string; role: string; department: string; status: 'ON_LEAVE' | 'WORKING'; leaveType: string | null; backOn: string | null }[];
+  approvers: { id: string; name: string; role: string; email: string; approved: number; rejected: number; askedInfo: number; approvalRate: number | null; avgResponseHours: number | null }[];
   upcoming: { _id: string; employeeName: string; leaveType: string; fromDate: string; toDate: string; status: Status }[];
 }
 
@@ -125,6 +126,52 @@ export function Dashboard() {
         </section>
       </div>
 
+      {s.approvers.length > 0 && (
+        <section className="card mt-6 overflow-x-auto p-5 sm:p-6">
+          <div className="mb-4 flex items-baseline justify-between">
+            <h3>Approver activity</h3>
+            <span className="text-tiny text-muted">this year · response time = from request (or reply) to decision</span>
+          </div>
+          <table className="w-full min-w-[640px] text-left text-small">
+            <thead className="text-tiny uppercase tracking-wider text-muted">
+              <tr className="border-b border-line">
+                <th className="py-2 pr-3 font-semibold">Approver</th>
+                <th className="py-2 pr-3 text-right font-semibold">Approved</th>
+                <th className="py-2 pr-3 text-right font-semibold">Rejected</th>
+                <th className="py-2 pr-3 text-right font-semibold">Asked info</th>
+                <th className="py-2 pr-3 font-semibold">Approval rate</th>
+                <th className="py-2 text-right font-semibold">Avg response</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.approvers.map((a, i) => (
+                <tr key={a.id} className="border-b border-line last:border-0">
+                  <td className="py-2.5 pr-3">
+                    <span className="flex items-center gap-2.5">
+                      <Avatar seed={a.email || a.id} size={28} />
+                      <span className="font-medium">{a.name}</span> <RoleTag role={a.role} />
+                      {i === 0 && <span className="text-tiny font-semibold text-accent">Most active</span>}
+                    </span>
+                  </td>
+                  <td className="data py-2.5 pr-3 text-right font-semibold text-success">{a.approved}</td>
+                  <td className="data py-2.5 pr-3 text-right text-danger">{a.rejected}</td>
+                  <td className="data py-2.5 pr-3 text-right text-info">{a.askedInfo}</td>
+                  <td className="py-2.5 pr-3">
+                    {a.approvalRate === null ? <span className="text-tiny text-muted">n/a</span> : (
+                      <span className="flex items-center gap-2">
+                        <span className="h-1.5 w-20 overflow-hidden rounded-full bg-danger-tint"><span className="block h-full bg-success" style={{ width: `${a.approvalRate}%` }} /></span>
+                        <span className="data text-tiny">{a.approvalRate}%</span>
+                      </span>
+                    )}
+                  </td>
+                  <td className="data py-2.5 text-right">{a.avgResponseHours === null ? 'n/a' : a.avgResponseHours < 1 ? `${Math.max(1, Math.round(a.avgResponseHours * 60))} min` : `${a.avgResponseHours} h`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       <section className="mt-6">
         <h3 className="mb-3">{s.scope === 'team' ? 'Team status' : 'Everyone'}</h3>
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -133,7 +180,7 @@ export function Dashboard() {
               <Avatar seed={p.email} size={40} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{p.name}</p>
-                <p className="truncate text-tiny text-muted">{p.department}</p>
+                <p className="truncate text-tiny text-muted"><RoleTag role={p.role} /> {p.department}</p>
               </div>
               {p.status === 'ON_LEAVE' ? (
                 <span className="rounded-md bg-accent-tint px-2 py-1 text-tiny font-semibold text-accent">On leave</span>

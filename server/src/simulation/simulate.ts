@@ -182,6 +182,12 @@ await check('Join team', 'Employee (Arjun) opens join inbox → 403', 403, reque
 people[zoya] = { ...people[zoya], managerId: 'm-cx', hodId: 'admin', department: teams.cx }; // what the next login sees
 await check('Join team', 'Zoya can now apply', 201, apply(zoya, { leaveType: 'CASUAL', fromDate: d(10), toDate: d(10), reason: 'Errand' }));
 
+const statsRes = await request(app).get('/api/stats').set(as('admin'));
+const topApprover = statsRes.body.approvers?.[0];
+results.push({ area: 'Dashboard', scenario: `Admin sees approver activity (top: ${topApprover?.name}, ${topApprover?.approved} approved)`, expected: 1, actual: statsRes.body.approvers?.length > 0 ? 1 : 0, ok: statsRes.body.approvers?.length > 0 });
+const mgrStats = await request(app).get('/api/stats').set(as('m-eng'));
+results.push({ area: 'Dashboard', scenario: "Manager's dashboard has no org-wide approver ranking", expected: 0, actual: mgrStats.body.approvers?.length ?? -1, ok: mgrStats.body.approvers?.length === 0 });
+
 // ── 9b. System admin reshapes the org ─────────────────────────────────────────
 person('sys', 'Sam Kurian', 'SYSADMIN', 'IT', null, null);
 await User.create({ clerkId: 'sys', name: 'Sam Kurian', email: 'sys@acme.in', role: 'SYSADMIN', employeeCode: 'VST-0000', department: 'IT' });

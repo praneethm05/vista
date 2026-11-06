@@ -57,7 +57,7 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 | `npm run dev` | API (`tsx watch`) + web (Vite) together |
 | `npm test` | 20 tests: workflow unit tests + API integration tests on an in-memory MongoDB, no setup needed |
 | `npm run build` | Production build of the client |
-| `cd server && npm run simulate` | 20-person company, 101 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
+| `cd server && npm run simulate` | 20-person company, 103 scenarios (everyday use + edge cases + races) → [`docs/SIMULATION.md`](docs/SIMULATION.md) |
 | `npm run seed` | Create or refresh the 3 demo accounts (Admin, Manager, Employee) |
 
 ---
@@ -77,7 +77,12 @@ The sign-in page asks for an **organisation email**; personal domains are accept
 ### Dashboards (manager: their team · admin and sysadmin: the whole organisation)
 - KPI tiles: headcount, **on leave today**, waiting for a decision, approved this month.
 - Bar chart of leave taken this year by type, plus a status breakdown bar.
-- **Out today** (with return date), **next 7 days**, and a status card for every person (Working / On leave).
+- **Out today** (with return date), **next 7 days**, and a status card for every person (Working / On leave), each with a role tag.
+- **Approver activity (admin and sysadmin):**
+  - for each approver: approved, rejected and asked-for-info counts, approval rate, and **average response time**
+  - response time is calculated from the audit log, from the request (or the employee's reply) to the decision
+  - the most active approver is flagged
+- **Role tags** (Employee / Manager / Admin · HOD / System admin) next to names in timelines, the audit log, the dashboard, teams and the org tree.
 
 ### Taking back leave
 - Employees can **take back approved leave** up to *N* days before it starts. *N* is set by the sysadmin; the default is 2.

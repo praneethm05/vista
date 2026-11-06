@@ -3,8 +3,7 @@ import { ApiError, useApi, useQuery } from '../lib/api';
 import { useMe } from '../lib/me';
 import { fmtTime } from '../lib/format';
 import type { Person, TeamRequest } from '../lib/types';
-import { Alert, Avatar, EmptyState, ErrorState, PageHeader, SkeletonList } from '../components/ui';
-import { ROLE_LABEL } from '../components/Shell';
+import { Alert, Avatar, EmptyState, ErrorState, PageHeader, RoleTag, SkeletonList } from '../components/ui';
 
 /** Manager: join requests inbox + team list. Admin: everyone in the organisation. */
 export function TeamPage() {
@@ -78,7 +77,7 @@ export function TeamPage() {
               <Avatar seed={p.avatarSeed ?? p.email} size={40} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{p.name}</p>
-                <p className="truncate text-tiny text-muted">{ROLE_LABEL[p.role]} · {p.email}</p>
+                <p className="truncate text-tiny text-muted"><RoleTag role={p.role} /> {p.email}</p>
               </div>
               <span className="data text-tiny text-muted">{p.employeeCode}</span>
               {!isManager && p.role === 'EMPLOYEE' && !p.managerId && <span className="rounded-full bg-warning-tint px-2 py-0.5 text-tiny font-semibold text-warning">No team</span>}

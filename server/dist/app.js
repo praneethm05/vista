@@ -1129,7 +1129,9 @@ async function dashboard(user) {
       backOn: away ? addDays(new Date(away.toDate), 1).toISOString().slice(0, 10) : null
     };
   });
+  const approvers = user.role === "MANAGER" ? [] : await approverActivity(yearStart);
   return {
+    approvers,
     scope: user.role === "MANAGER" ? "team" : "organisation",
     headcount: people.length,
     onLeaveToday: current.length,
@@ -1143,6 +1145,47 @@ async function dashboard(user) {
     roster,
     upcoming
   };
+}
+var DECISIONS = { APPROVED_BY_MANAGER: "approved", APPROVED: "approved", REJECTED: "rejected", INFO_REQUESTED: "askedInfo" };
+async function approverActivity(since) {
+  const logs = await AuditLog.find({ requestId: { $ne: null }, at: { $gte: since } }).select("requestId actorId actorName actorRole action at").sort({ requestId: 1, at: 1 }).lean();
+  const stats = /* @__PURE__ */ new Map();
+  let lastRequest = "";
+  let lastAt = 0;
+  for (const log of logs) {
+    const rid = String(log.requestId);
+    if (rid !== lastRequest) {
+      lastRequest = rid;
+      lastAt = 0;
+    }
+    const kind = DECISIONS[log.action];
+    const at = new Date(log.at).getTime();
+    if (kind) {
+      const row = stats.get(log.actorId) ?? { id: log.actorId, name: log.actorName, role: log.actorRole, approved: 0, rejected: 0, askedInfo: 0, totalMs: 0, decisions: 0 };
+      row[kind] += 1;
+      if (lastAt) {
+        row.totalMs += at - lastAt;
+        row.decisions += 1;
+      }
+      stats.set(log.actorId, row);
+    }
+    lastAt = at;
+  }
+  const emails = new Map((await User.find({ clerkId: { $in: [...stats.keys()] } }).select("clerkId email role").lean()).map((u) => [u.clerkId, u]));
+  return [...stats.values()].map((r) => {
+    const total = r.approved + r.rejected;
+    return {
+      id: r.id,
+      name: r.name,
+      role: emails.get(r.id)?.role ?? r.role,
+      email: emails.get(r.id)?.email ?? "",
+      approved: r.approved,
+      rejected: r.rejected,
+      askedInfo: r.askedInfo,
+      approvalRate: total ? Math.round(r.approved / total * 100) : null,
+      avgResponseHours: r.decisions ? Math.round(r.totalMs / r.decisions / 36e5 * 10) / 10 : null
+    };
+  }).sort((a, b) => b.approved + b.rejected + b.askedInfo - (a.approved + a.rejected + a.askedInfo));
 }
 
 // src/services/orgService.ts

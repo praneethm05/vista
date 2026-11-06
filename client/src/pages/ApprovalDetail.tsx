@@ -4,7 +4,7 @@ import { ApiError, useApi, useQuery } from '../lib/api';
 import { useMe } from '../lib/me';
 import { fmtRange, plural } from '../lib/format';
 import type { Detail } from '../lib/types';
-import { Alert, Avatar, ErrorState, Spinner, StatusBadge } from '../components/ui';
+import { Alert, Avatar, ErrorState, RoleTag, Spinner, StatusBadge } from '../components/ui';
 import { ApprovalSteps, Timeline } from '../components/Timeline';
 import { DocumentList } from '../components/Documents';
 
@@ -54,7 +54,7 @@ export function ApprovalDetail() {
                 <Avatar seed={r.employeeEmail || r.employeeId} size={52} />
                 <div>
                   <p className="text-subtitle font-semibold">{r.employeeName}</p>
-                  <p className="text-small text-muted">{r.department} · {typeLabel}</p>
+                  <p className="text-small text-muted"><RoleTag role={r.managerId === r.hodId ? 'MANAGER' : 'EMPLOYEE'} /> {r.department} · {typeLabel}</p>
                 </div>
               </div>
               <StatusBadge status={r.status} />

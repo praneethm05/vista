@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ApiError, useApi, useQuery } from '../lib/api';
 import type { Person, Role } from '../lib/types';
-import { Alert, Avatar, ErrorState, PageHeader, SkeletonList } from '../components/ui';
+import { Alert, Avatar, ErrorState, PageHeader, RoleTag, SkeletonList } from '../components/ui';
 import { ROLE_LABEL } from '../components/Shell';
 
 /** System admin: the whole reporting tree, and the controls to reshape it. */
@@ -52,7 +52,7 @@ export function OrgPage() {
           <Avatar seed={p.avatarSeed ?? p.email} size={32} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-small font-semibold">{p.name}</span>
-            <span className="block truncate text-tiny text-muted">{ROLE_LABEL[p.role]} · {p.department}</span>
+            <span className="block truncate text-tiny text-muted"><RoleTag role={p.role} /> {p.department}</span>
           </span>
           {kids.length > 0 && <span className="data rounded-md bg-line/70 px-1.5 text-tiny text-muted">{kids.length}</span>}
         </button>

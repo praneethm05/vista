@@ -1,5 +1,6 @@
 import { ACTION_LABEL, fmtTime } from '../lib/format';
 import type { AuditEntry } from '../lib/types';
+import { RoleTag } from './ui';
 
 const DOT: Record<string, string> = {
   SUBMITTED: 'bg-brand', APPROVED_BY_MANAGER: 'bg-success', APPROVED: 'bg-success', REJECTED: 'bg-danger',
@@ -15,7 +16,7 @@ export function Timeline({ entries }: { entries: AuditEntry[] }) {
           <span className={`absolute -left-[31px] top-1.5 size-2.5 rounded-full ring-4 ring-surface ${DOT[e.action] ?? 'bg-muted'}`} />
           <p className="text-small font-semibold">{ACTION_LABEL[e.action] ?? e.action}</p>
           <p className="text-tiny text-muted">
-            {e.actorName} · {e.actorRole.toLowerCase()} · <span className="data">{fmtTime(e.at)}</span>
+            <span className="font-medium text-ink">{e.actorName}</span> <RoleTag role={e.actorRole} /> · <span className="data">{fmtTime(e.at)}</span>
           </p>
           {e.comment && <p className="mt-1.5 rounded-control bg-canvas px-3 py-2 text-small">“{e.comment}”</p>}
         </li>

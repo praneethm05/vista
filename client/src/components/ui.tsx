@@ -80,3 +80,16 @@ export function PageHeader({ eyebrow, title, action }: { eyebrow?: string; title
     </div>
   );
 }
+
+const ROLE_STYLE: Record<string, { label: string; className: string }> = {
+  EMPLOYEE: { label: 'Employee', className: 'border-line text-muted' },
+  MANAGER: { label: 'Manager', className: 'border-warning/40 text-warning' },
+  ADMIN: { label: 'Admin · HOD', className: 'border-brand/40 text-brand' },
+  SYSADMIN: { label: 'System admin', className: 'border-ink/30 text-ink' },
+};
+
+/** Small outlined role tag, so it is always clear who is who in a workflow. */
+export function RoleTag({ role }: { role: string }) {
+  const r = ROLE_STYLE[role] ?? { label: role, className: 'border-line text-muted' };
+  return <span className={`inline-block whitespace-nowrap rounded border px-1.5 py-px align-middle text-[0.6875rem] font-semibold leading-4 ${r.className}`}>{r.label}</span>;
+}

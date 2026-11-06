@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '../lib/api';
 import { ACTION_LABEL, STATUS_META, fmtTime } from '../lib/format';
 import type { AuditEntry } from '../lib/types';
-import { EmptyState, ErrorState, PageHeader, SkeletonList } from '../components/ui';
+import { EmptyState, ErrorState, PageHeader, RoleTag, SkeletonList } from '../components/ui';
 
 export function AuditPage() {
   const { data, error, loading, reload } = useQuery<AuditEntry[]>('/audit');
@@ -21,7 +21,7 @@ export function AuditPage() {
               {data!.map((e) => (
                 <tr key={e._id} className="border-b border-line last:border-0">
                   <td className="data whitespace-nowrap px-4 py-3 text-muted">{fmtTime(e.at)}</td>
-                  <td className="px-4 py-3"><span className="font-medium">{e.actorName}</span> <span className="text-tiny text-muted">{e.actorRole.toLowerCase()}</span></td>
+                  <td className="px-4 py-3"><span className="font-medium">{e.actorName}</span> <RoleTag role={e.actorRole} /></td>
                   <td className="px-4 py-3">{e.requestId ? <Link className="font-medium text-brand" to={`/approvals/${e.requestId}`}>{ACTION_LABEL[e.action] ?? e.action}</Link> : ACTION_LABEL[e.action] ?? e.action}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-tiny">{e.fromStatus ? STATUS_META[e.fromStatus].short : '-'} → {e.toStatus ? STATUS_META[e.toStatus].short : '-'}</td>
                   <td className="max-w-xs truncate px-4 py-3 text-muted">{e.comment}</td>
