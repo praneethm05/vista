@@ -33,6 +33,12 @@ export interface Actor {
   id: string;
 }
 
+/** Facts the cancel rule needs; kept out of WorkflowRequest so the machine stays pure and testable. */
+export interface CancelContext {
+  daysUntilStart: number;
+  noticeDays: number;
+}
+
 export interface Transition {
   status: Status;
   stage: Stage;
@@ -43,15 +49,23 @@ export function transition(
   action: Action,
   actor: Actor,
   comment?: string,
+  cancelContext?: CancelContext,
 ): Transition {
-  if (action === 'CANCEL') return cancel(request, actor);
+  if (action === 'CANCEL') return cancel(request, actor, cancelContext);
   if (action === 'RESPOND') return respond(request, actor);
   return decide(request, action, actor, comment);
 }
 
-function cancel(request: WorkflowRequest, actor: Actor): Transition {
+function cancel(request: WorkflowRequest, actor: Actor, ctx?: CancelContext): Transition {
   if (actor.id !== request.employeeId) {
     throw new AppError('FORBIDDEN', 403, 'Only the employee who applied can cancel this request.');
+  }
+  // Approved leave can be taken back only with enough notice before it starts.
+  if (request.status === 'APPROVED' && ctx) {
+    if (ctx.daysUntilStart < ctx.noticeDays) {
+      throw new AppError('TOO_LATE_TO_CANCEL', 409, `Approved leave can be taken back up to ${ctx.noticeDays} day${ctx.noticeDays === 1 ? '' : 's'} before it starts. Please talk to your manager.`);
+    }
+    return { status: 'CANCELLED', stage: request.stage };
   }
   if (!OPEN_STATUSES.includes(request.status)) {
     throw new AppError('NOT_CANCELLABLE', 409, `This request is already ${label(request.status)} and can no longer be cancelled.`);

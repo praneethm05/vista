@@ -14,6 +14,7 @@ const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'Vista#Leave-2026!';
 
 const DEMO = [
+  { key: 'sysadmin', firstName: 'Sam', lastName: 'Kurian', email: 'sysadmin+clerk_test@vista-demo.com', role: 'SYSADMIN', code: 'VST-0000' },
   { key: 'admin', firstName: 'Aditi', lastName: 'Rao', email: 'admin+clerk_test@vista-demo.com', role: 'ADMIN', code: 'VST-0001' },
   { key: 'manager', firstName: 'Meera', lastName: 'Menon', email: 'manager+clerk_test@vista-demo.com', role: 'MANAGER', code: 'VST-0002' },
   { key: 'employee', firstName: 'Arjun', lastName: 'Shetty', email: 'employee+clerk_test@vista-demo.com', role: 'EMPLOYEE', code: 'VST-0003' },
@@ -48,6 +49,7 @@ for (const d of DEMO) ids[d.key] = await ensureClerkUser(d);
 
 const department = 'Engineering';
 const team = {
+  sysadmin: { managerId: null, hodId: null },
   admin: { managerId: null, hodId: null },
   manager: { managerId: ids.admin, hodId: ids.admin },
   employee: { managerId: ids.manager, hodId: ids.admin },

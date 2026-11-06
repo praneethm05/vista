@@ -35,6 +35,6 @@ teamRouter.post('/requests/:id/decision', requireRole('MANAGER'), async (req, re
   res.json(await team.decide(req.user!, String(req.params.id), input.decision, input.comment));
 });
 
-teamRouter.get('/members', requireRole('MANAGER', 'ADMIN'), async (req, res) => {
-  res.json(req.user!.role === 'ADMIN' ? await team.allUsers() : await team.myTeam(req.user!));
+teamRouter.get('/members', requireRole('MANAGER', 'ADMIN', 'SYSADMIN'), async (req, res) => {
+  res.json(req.user!.role !== 'MANAGER' ? await team.allUsers() : await team.myTeam(req.user!));
 });

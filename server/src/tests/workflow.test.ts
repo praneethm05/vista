@@ -49,6 +49,12 @@ describe('workflow', () => {
     expect(code(() => transition(approved, 'REJECT', { id: 'mgr' }, 'x'))).toBe('NOT_PENDING');
     expect(code(() => transition(approved, 'CANCEL', { id: 'emp' }))).toBe('NOT_CANCELLABLE');
   });
+
+  it('approved leave can be taken back only with enough notice', () => {
+    const approved = { ...base, status: 'APPROVED' as const };
+    expect(transition(approved, 'CANCEL', { id: 'emp' }, undefined, { daysUntilStart: 5, noticeDays: 2 }).status).toBe('CANCELLED');
+    expect(code(() => transition(approved, 'CANCEL', { id: 'emp' }, undefined, { daysUntilStart: 1, noticeDays: 2 }))).toBe('TOO_LATE_TO_CANCEL');
+  });
 });
 
 describe('dates', () => {

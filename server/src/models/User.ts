@@ -9,7 +9,7 @@ const userSchema = new Schema(
     clerkId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     email: { type: String, required: true, lowercase: true, index: true },
-    role: { type: String, enum: ['EMPLOYEE', 'MANAGER', 'ADMIN'], default: 'EMPLOYEE' },
+    role: { type: String, enum: ['EMPLOYEE', 'MANAGER', 'ADMIN', 'SYSADMIN'], default: 'EMPLOYEE' },
     employeeCode: { type: String, required: true, unique: true },
     department: { type: String, default: 'Unassigned' },
     managerId: { type: String, default: null, index: true },

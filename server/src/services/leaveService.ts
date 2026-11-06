@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 import { LeaveRequest, type LeaveRequestDoc } from '../models/LeaveRequest.js';
 import { AppError, notFound } from '../domain/errors.js';
 import { addDays, calendarDays, parseDay, todayUtc, workingDays } from '../domain/dates.js';
-import { getLeaveType, isLongLeave, needsDocument, LONG_LEAVE_THRESHOLD_DAYS } from '../domain/leaveTypes.js';
+import { getLeaveType, isLongLeave, needsDocument } from '../domain/leaveTypes.js';
 import { ACTIVE_STATUSES, transition, type Status, type Stage } from '../domain/workflow.js';
 import type { CreateLeaveInput, RespondInput } from '../domain/schemas.js';
 import type { CurrentUser } from '../auth/user.js';
@@ -10,6 +10,7 @@ import { getBalances } from './balanceService.js';
 import { record, timeline } from './auditService.js';
 import { assertOwned, linkToRequest, listMeta } from './documentService.js';
 import { withLock } from './lockService.js';
+import { getPolicy } from './settingsService.js';
 import * as notify from '../mail/notifications.js';
 
 /**
@@ -26,6 +27,7 @@ async function submitUnlocked(user: CurrentUser, input: CreateLeaveInput) {
   const to = parseDay(input.toDate);
   const days = calendarDays(from, to);
   const working = workingDays(from, to);
+  const policy = await getPolicy();
 
   if (!user.managerId || !user.hodId) {
     throw new AppError('NO_TEAM', 422, 'Join a team first: once your manager accepts you, you can apply for leave.');
@@ -40,10 +42,10 @@ async function submitUnlocked(user: CurrentUser, input: CreateLeaveInput) {
   if (working === 0) {
     throw new AppError('NO_WORKING_DAYS', 422, 'These dates fall on a weekend, so no leave is needed.');
   }
-  if (needsDocument(type, days) && input.documentIds.length === 0) {
+  if (needsDocument(type, days, policy.longLeaveThresholdDays) && input.documentIds.length === 0) {
     const why = type.documentAlways
       ? `${type.label} needs a supporting document.`
-      : `Leave longer than ${LONG_LEAVE_THRESHOLD_DAYS} consecutive days needs a supporting document.`;
+      : `Leave longer than ${policy.longLeaveThresholdDays} consecutive days needs a supporting document.`;
     throw new AppError('DOCUMENT_REQUIRED', 422, why, { documentIds: 'Required' });
   }
   await assertOwned(user, input.documentIds);
@@ -65,7 +67,7 @@ async function submitUnlocked(user: CurrentUser, input: CreateLeaveInput) {
     reason: input.reason,
     documentIds: input.documentIds,
     // Second level only when it's a different person (e.g. a manager's own leave goes to the admin once).
-    requiresHod: isLongLeave(days) && user.managerId !== user.hodId,
+    requiresHod: isLongLeave(days, policy.longLeaveThresholdDays) && user.managerId !== user.hodId,
     status: 'PENDING_MANAGER',
     stage: 'MANAGER',
   });
@@ -146,9 +148,13 @@ export async function applyTransition(
 
 export async function cancel(user: CurrentUser, id: string) {
   const request = await getVisible(user, id);
-  const next = transition(request as never, 'CANCEL', user);
+  const { cancelNoticeDays } = await getPolicy();
+  const daysUntilStart = Math.round((new Date(request.fromDate).getTime() - todayUtc().getTime()) / 86_400_000);
+  const next = transition(request as never, 'CANCEL', user, undefined, { daysUntilStart, noticeDays: cancelNoticeDays });
   const updated = await applyTransition(request, next);
-  await record(user, { requestId: request._id, action: 'CANCELLED', fromStatus: request.status, toStatus: next.status });
+  const wasApproved = request.status === 'APPROVED';
+  await record(user, { requestId: request._id, action: wasApproved ? 'WITHDRAWN' : 'CANCELLED', fromStatus: request.status, toStatus: next.status });
+  if (wasApproved) await notify.leaveWithdrawn(updated as LeaveRequestDoc);
   return updated;
 }
 

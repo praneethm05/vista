@@ -1,6 +1,7 @@
 import { LeaveRequest } from '../models/LeaveRequest.js';
 import { LEAVE_TYPES, type LeaveTypeCode } from '../domain/leaveTypes.js';
 import { ACTIVE_STATUSES } from '../domain/workflow.js';
+import { getPolicy } from './settingsService.js';
 
 export interface Balance {
   code: LeaveTypeCode;
@@ -30,16 +31,18 @@ export async function getBalances(employeeId: string, year = new Date().getUTCFu
     },
   ]);
 
+  const { quotas } = await getPolicy();
   return LEAVE_TYPES.map((type) => {
+    const quota = quotas[type.code] ?? type.quota;
     const used = rows.find((r) => r._id.type === type.code && r._id.approved)?.days ?? 0;
     const pending = rows.find((r) => r._id.type === type.code && !r._id.approved)?.days ?? 0;
     return {
       code: type.code,
       label: type.label,
-      quota: type.quota,
+      quota,
       used,
       pending,
-      available: type.quota === null ? null : type.quota - used - pending,
+      available: quota === null ? null : quota - used - pending,
     };
   });
 }

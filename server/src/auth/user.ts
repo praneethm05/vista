@@ -1,4 +1,4 @@
-export type Role = 'EMPLOYEE' | 'MANAGER' | 'ADMIN';
+export type Role = 'EMPLOYEE' | 'MANAGER' | 'ADMIN' | 'SYSADMIN';
 
 /** The signed-in user: identity from Clerk, role and team from Vista's User collection. */
 export interface CurrentUser {

@@ -9,6 +9,7 @@ import { approvalsRouter } from './routes/approvals.js';
 import { documentsRouter } from './routes/documents.js';
 import { metaRouter } from './routes/meta.js';
 import { teamRouter } from './routes/team.js';
+import { adminRouter } from './routes/admin.js';
 import { connectDb } from './db.js';
 
 export function createApp(options: { clientOrigin?: string; connect?: boolean } = {}) {
@@ -32,6 +33,7 @@ export function createApp(options: { clientOrigin?: string; connect?: boolean } 
   app.use('/api/approvals', approvalsRouter);
   app.use('/api/documents', documentsRouter);
   app.use('/api/team', teamRouter);
+  app.use('/api', adminRouter);
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'That API route does not exist.' } });

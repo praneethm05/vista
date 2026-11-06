@@ -95,3 +95,11 @@ export async function joinDecided(employeeEmail: string, managerName: string, ac
     quote: comment ? { by: managerName, text: comment } : undefined, cta: { label: accepted ? 'Apply for leave' : 'Find your manager', url: appUrl(accepted ? '/apply' : '/') },
   });
 }
+
+export async function leaveWithdrawn(r: LeaveRequestDoc) {
+  await sendEmail(await emailOf(r.managerId), `${r.employeeName} took back approved leave`, {
+    preheader: `${range(r)} is no longer off`, eyebrow: 'Team update', title: `${r.employeeName} will be working after all`,
+    intro: 'They withdrew leave you had approved. Their balance has been restored automatically.',
+    status: { label: 'Withdrawn', tone: 'neutral' }, rows: rows(r), cta: { label: 'View request', url: appUrl(`/approvals/${r._id}`) },
+  });
+}

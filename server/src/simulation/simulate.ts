@@ -125,6 +125,8 @@ await check('Balance', 'Wellness (no cap) 20 working days with document', 201, a
 // ── 5. Security & access ─────────────────────────────────────────────────────
 const target = shortIds[0];
 await check('Security', "Employee reads a colleague's leave → 404", 404, request(app).get(`/api/leaves/${target}`).set(as('e-priya')));
+await check('Security', 'Employee opens dashboard stats → 403', 403, request(app).get('/api/stats').set(as('e-priya')));
+await check('Security', 'Manager changes org settings → 403', 403, request(app).put('/api/settings').set(as('m-eng')).send({ longLeaveThresholdDays: 10, cancelNoticeDays: 0 }));
 await check('Security', "Manager of another team reads it → 404", 404, request(app).get(`/api/leaves/${target}`).set(as('m-ops')));
 await check('Security', 'Employee opens approvals → 403', 403, request(app).get('/api/approvals').set(as('e-priya')));
 await check('Security', 'Employee opens audit log → 403', 403, request(app).get('/api/audit').set(as('e-priya')));
@@ -139,7 +141,11 @@ await check('Security', 'Employee approves own request → 403', 403, act('e-pri
 await check('Workflow', 'Reject without comment', 400, act('m-eng', priyaPending.body._id, 'REJECT'));
 await check('Workflow', 'Employee cancels pending request', 200, request(app).post(`/api/leaves/${priyaPending.body._id}/cancel`).set(as('e-priya')));
 await check('Workflow', 'Manager approves a cancelled request', 409, act('m-eng', priyaPending.body._id, 'APPROVE'));
-await check('Workflow', 'Cancel an approved request', 409, request(app).post(`/api/leaves/${shortIds[0]}/cancel`).set(as(empIds[0])));
+await check('Workflow', 'Take back approved leave well before it starts → allowed, balance restored', 200, request(app).post(`/api/leaves/${shortIds[0]}/cancel`).set(as(empIds[0])));
+let soon = todayUtc(); while ([0, 6].includes(soon.getUTCDay())) soon = addDays(soon, 1);
+const late = await apply('e-tara', { leaveType: 'SICK', fromDate: formatDay(soon), toDate: formatDay(soon), reason: 'Unwell' });
+await act('m-cx', late.body._id, 'APPROVE');
+await check('Workflow', 'Take back approved leave that starts today → too late (2-day notice)', 409, request(app).post(`/api/leaves/${late.body._id}/cancel`).set(as('e-tara')));
 await check('Workflow', 'Reply when no info was requested', 409, request(app).post(`/api/leaves/${long.body._id}/respond`).set(as(arjun)).send({ comment: 'hello there' }));
 const mgrLeave = await check('Workflow', 'Manager applies for 5 days (with doc)', 201, apply('m-eng', { leaveType: 'ANNUAL', fromDate: d(140), toDate: d(144), reason: 'Vacation', documentIds: [await doc('m-eng')] }));
 await check('Workflow', "Admin approves manager's leave in one step", 200, act('admin', mgrLeave.body._id, 'APPROVE'));

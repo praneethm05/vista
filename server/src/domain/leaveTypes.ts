@@ -38,10 +38,10 @@ export function getLeaveType(code: LeaveTypeCode): LeaveType {
 /** The assignment's strict rule: more than 3 consecutive days → documents + Manager AND HOD approval. */
 export const LONG_LEAVE_THRESHOLD_DAYS = 3;
 
-export function isLongLeave(calendarDayCount: number): boolean {
-  return calendarDayCount > LONG_LEAVE_THRESHOLD_DAYS;
+export function isLongLeave(calendarDayCount: number, threshold = LONG_LEAVE_THRESHOLD_DAYS): boolean {
+  return calendarDayCount > threshold;
 }
 
-export function needsDocument(type: LeaveType, calendarDayCount: number): boolean {
-  return type.documentAlways || isLongLeave(calendarDayCount);
+export function needsDocument(type: LeaveType, calendarDayCount: number, threshold = LONG_LEAVE_THRESHOLD_DAYS): boolean {
+  return type.documentAlways || isLongLeave(calendarDayCount, threshold);
 }
