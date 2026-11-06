@@ -4,4 +4,6 @@ dist
 .env.local
 *.log
 .DS_Store
-public
+
+# Build output committed on purpose: Vercel serves it as-is (see README "Deployment")
+!server/dist/
