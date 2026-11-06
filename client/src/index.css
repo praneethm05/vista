@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* Vista design tokens: Akasa-inspired palette (violet + sunrise orange), modern neutrals. */
+@theme {
+  --font-display: "Big Shoulders", "Arial Narrow", sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  --color-ink: #16121f;
+  --color-muted: #6b6478;
+  --color-line: #e9e4f2;
+  --color-surface: #ffffff;
+  --color-canvas: #f8f6fc;
+  --color-brand: #5c0fd9;
+  --color-brand-dark: #3f0a96;
+  --color-brand-tint: #eee7fa;
+  --color-accent: #ff6300;
+  --color-accent-tint: #ffefe5;
+  --color-success: #1f8a5b;
+  --color-success-tint: #e6f4ed;
+  --color-danger: #c2412d;
+  --color-danger-tint: #fbeae7;
+  --color-warning: #b26a00;
+  --color-warning-tint: #fff4e0;
+  --color-info: #216ba5;
+  --color-info-tint: #e7f1fa;
+
+  --text-display: 3rem;
+  --text-title: 1.875rem;
+  --text-subtitle: 1.25rem;
+  --text-body: 0.9375rem;
+  --text-small: 0.8125rem;
+  --text-tiny: 0.75rem;
+
+  --radius-card: 16px;
+  --radius-control: 10px;
+  --shadow-card: 0 1px 2px rgb(22 18 31 / 0.04), 0 6px 20px rgb(60 20 140 / 0.06);
+}
+
+html { background: var(--color-canvas); color: var(--color-ink); }
+body { font-family: var(--font-sans); font-size: var(--text-body); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+.font-display, h1, h2 { font-family: var(--font-display); font-variation-settings: "opsz" 72; font-weight: 800; letter-spacing: 0.01em; line-height: 1.02; }
+h1 { font-size: var(--text-display); text-transform: uppercase; }
+h2 { font-size: var(--text-title); }
+.data { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+
+@utility card { @apply rounded-card bg-surface shadow-card border border-line;  }
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-control px-4 py-2.5 text-small font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed;  }
+@utility btn-primary { @apply btn bg-brand text-white hover:bg-brand-dark;  }
+@utility btn-accent { @apply btn bg-accent text-white hover:brightness-95;  }
+@utility btn-ghost { @apply btn border border-line bg-surface text-ink hover:bg-brand-tint;  }
+@utility btn-danger { @apply btn border border-danger/30 bg-danger-tint text-danger hover:bg-danger hover:text-white;  }
+@utility btn-success { @apply btn bg-success text-white hover:brightness-95;  }
+@utility field { @apply w-full rounded-control border border-line bg-surface px-3 py-2.5 text-body outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15;  }
+@utility label { @apply mb-1.5 block text-small font-semibold text-ink;  }
+@utility eyebrow { @apply text-tiny font-semibold uppercase tracking-[0.12em] text-muted;  }
