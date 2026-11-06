@@ -26,7 +26,7 @@ export async function queue(user: CurrentUser, scope: 'pending' | 'all' = 'pendi
  */
 export async function withInsights(request: LeaveRequestDoc) {
   const [balances, clashes] = await Promise.all([
-    getBalances(request.employeeId),
+    getBalances(request.employeeId, new Date(request.fromDate).getUTCFullYear()),
     LeaveRequest.find({
       _id: { $ne: request._id },
       managerId: request.managerId,
@@ -56,7 +56,7 @@ export async function act(user: CurrentUser, id: string, input: ActionInput) {
 
   if (next.status === 'APPROVED') {
     // Re-check at approval time: other leave may have been approved since this was submitted.
-    await assertBalance(request.employeeId, request.leaveType, request.workingDays, request);
+    await assertBalance(request.employeeId, request.leaveType, request.workingDays, new Date(request.fromDate).getUTCFullYear(), request);
   }
 
   const updated = await applyTransition(request, next, { lastComment: input.comment });

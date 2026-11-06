@@ -9,8 +9,17 @@ import type { CurrentUser } from '../auth/user.js';
 import { getBalances } from './balanceService.js';
 import { record, timeline } from './auditService.js';
 import { assertOwned, linkToRequest, listMeta } from './documentService.js';
+import { withLock } from './lockService.js';
 
-export async function submit(user: CurrentUser, input: CreateLeaveInput) {
+/**
+ * One submission per employee at a time: the overlap and balance checks plus the insert
+ * run as one unit, so a double-click can't create two requests for the same dates.
+ */
+export function submit(user: CurrentUser, input: CreateLeaveInput) {
+  return withLock(`submit:${user.id}`, () => submitUnlocked(user, input));
+}
+
+async function submitUnlocked(user: CurrentUser, input: CreateLeaveInput) {
   const type = getLeaveType(input.leaveType);
   const from = parseDay(input.fromDate);
   const to = parseDay(input.toDate);
@@ -38,7 +47,7 @@ export async function submit(user: CurrentUser, input: CreateLeaveInput) {
   }
   await assertOwned(user, input.documentIds);
   await assertNoOverlap(user.id, from, to);
-  await assertBalance(user.id, input.leaveType, working);
+  await assertBalance(user.id, input.leaveType, working, from.getUTCFullYear());
 
   const request = await LeaveRequest.create({
     employeeId: user.id,
@@ -77,8 +86,9 @@ async function assertNoOverlap(employeeId: string, from: Date, to: Date) {
   }
 }
 
-export async function assertBalance(employeeId: string, leaveType: string, workingDayCount: number, excludeRequest?: LeaveRequestDoc) {
-  const balance = (await getBalances(employeeId)).find((b) => b.code === leaveType);
+/** Checks against the quota of the year the leave starts in (leave applied in Nov for March uses next year's quota). */
+export async function assertBalance(employeeId: string, leaveType: string, workingDayCount: number, year: number, excludeRequest?: LeaveRequestDoc) {
+  const balance = (await getBalances(employeeId, year)).find((b) => b.code === leaveType);
   if (!balance || balance.available === null) return;
   // When re-checking at approval time, this request's own days are already counted as pending.
   const available = balance.available + (excludeRequest ? excludeRequest.workingDays : 0);
@@ -86,7 +96,7 @@ export async function assertBalance(employeeId: string, leaveType: string, worki
     throw new AppError(
       'INSUFFICIENT_BALANCE',
       422,
-      `Not enough ${balance.label.toLowerCase()}: you asked for ${workingDayCount} working days but have ${Math.max(available, 0)} left.`,
+      `Not enough ${balance.label.toLowerCase()} for ${year}: you asked for ${workingDayCount} working days but have ${Math.max(available, 0)} left.`,
     );
   }
 }

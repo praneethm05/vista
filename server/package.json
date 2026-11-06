@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "vercel-build": "npm --prefix ../client install && npm --prefix ../client run build -- --outDir ../server/public --emptyOutDir",
-    "seed": "tsx --env-file=../.env src/scripts/seedDemo.ts"
+    "seed": "tsx --env-file=../.env src/scripts/seedDemo.ts",
+    "simulate": "tsx src/simulation/simulate.ts"
   },
   "dependencies": {
     "@clerk/express": "^2.1.88",
